@@ -1,0 +1,84 @@
+config:
+  do_init_pose: False
+  do_tracking: True
+  do_ba: False
+  show_init_render: True
+  show_tracking_render: True
+ba:
+  target:
+    model_file: "/home/frieder/projects/traact_workspace/traact_bundleadjustment/misc/BoardTarget_Narvis.json"
+    target_to_origin_file: "/home/frieder/projects/traact_workspace/traact_bundleadjustment/misc/narvisTarget2charucoMarker.json"
+    use_target_residual: False
+    target_residual_stddev: 0.1
+  default:
+    init_root_folder: "/media/frieder/System/data/inm_ba/cadaver_2/"
+    tracking_root_folder: "/media/frieder/System/data/inm_ba/cadaver_2/"
+    init:
+      playback:
+        stop_after_n_frames: 100
+      image_16To8Bit:
+        gray_threshold: 160
+        gray_min: 128
+        gray_max: 2000
+      circle_tracking:
+        filter_area: False
+    tracking:
+      playback:
+        stop_after_n_frames: -1
+      image_16To8Bit:
+        gray_threshold: 160
+        gray_min: 128
+        gray_max: 2000
+      circle_tracking:
+        filter_area: False
+        area_min: 13
+        area_max: 400
+  cameras:
+    cn01:
+      static_position: False
+      static_rotation: False
+      #image_16To8Bit:
+      #  gray_threshold: 160
+      #  gray_min: 128
+      #  gray_max: 2000
+      origin_mkv_file:     "cn01/capture.mkv"
+      tracking_mkv_file:   "cn01/capture.mkv"
+      intrinsic_file:   "cn01/calib_raw.json"
+      extrinsic_file:   "cn01/camera2world_opencv.json"
+      measurement_file: "cn01/target_points.txt"
+      result_file_init: "cn01/world2camera_init.json"
+      result_file: "cn01/world2camera.json"
+    cn02:
+      static_position: False
+      static_rotation: False
+      image_16To8Bit:
+        gray_threshold: 100
+        gray_min: 1000
+        gray_max: 7000
+      origin_mkv_file: "cn02/capture.mkv"
+      tracking_mkv_file: "cn02/capture.mkv"
+      intrinsic_file: "cn02/calib_raw.json"
+      extrinsic_file: "cn02/camera2world_opencv.json"
+      measurement_file: "cn02/target_points.txt"
+      result_file_init: "cn02/world2camera_init.json"
+      result_file: "cn02/world2camera.json"
+    cn03:
+      static_position: True
+      static_rotation: True
+      origin_mkv_file: "cn03/capture.mkv"
+      tracking_mkv_file: "cn03/capture.mkv"
+      intrinsic_file: "cn03/calib_raw.json"
+      extrinsic_file: "cn03/camera2world_opencv.json"
+      measurement_file: "cn03/target_points.txt"
+      result_file_init: "cn03/world2camera_init.json"
+      result_file: "cn03/world2camera.json"
+    cn04:
+      static_position: False
+      static_rotation: False
+      origin_mkv_file: "cn04/capture.mkv"
+      tracking_mkv_file: "cn04/capture.mkv"
+      intrinsic_file: "cn04/calib_raw.json"
+      extrinsic_file: "cn04/camera2world_opencv.json"
+      measurement_file: "cn04/target_points.txt"
+      result_file_init: "cn04/world2camera_init.json"
+      result_file: "cn04/world2camera.json"

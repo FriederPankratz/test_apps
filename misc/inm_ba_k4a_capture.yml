@@ -1,0 +1,110 @@
+config:
+  do_init_pose: True
+  do_tracking: True
+  do_ba: False
+  show_init_render: True
+  show_tracking_render: True
+ba:
+  default:
+    init_root_folder: "/home/frieder/data/recording_20210913_Calib/"
+    tracking_root_folder: "/home/frieder/data/recording_20210913_Calib/"
+    init:
+      playback:
+        stop_after_n_frames: 100
+      image_16To8Bit:
+        gray_threshold: 100
+        gray_min: 128
+        gray_max: 2000
+      circle_tracking:
+        filter_area: False
+    tracking:
+      playback:
+        stop_after_n_frames: -1
+      image_16To8Bit:
+        gray_threshold: 160
+        gray_min: 128
+        gray_max: 2000
+      circle_tracking:
+        filter_area: False
+        area_min: 13
+        area_max: 400
+  cameras:
+    cn01:
+      static_position: False
+      static_rotation: False
+      image_16To8Bit:
+        gray_threshold: 100
+        gray_min: 800
+        gray_max: 2000
+      origin_mkv_file:     "cn01/k4a_capture.mkv"
+      tracking_mkv_file:   "cn01/k4a_capture.mkv"
+      intrinsic_file:   "cn01/calib_raw.json"
+      extrinsic_file:   "cn01/camera2world_opencv.json"
+      measurement_file: "cn01/target_points.txt"
+      result_file_init: "cn01/world2camera_init.json"
+      result_file: "cn01/world2camera_final.json"
+    cn02:
+      image_16To8Bit:
+        gray_threshold: 100
+        gray_min: 2000
+        gray_max: 6000
+      static_position: True
+      static_rotation: True
+      origin_mkv_file: "cn02/k4a_capture.mkv"
+      tracking_mkv_file: "cn02/k4a_capture.mkv"
+      intrinsic_file: "cn02/calib_raw.json"
+      extrinsic_file: "cn02/camera2world_opencv.json"
+      measurement_file: "cn02/target_points.txt"
+      result_file_init: "cn02/world2camera_init.json"
+      result_file: "cn02/world2camera_final.json"
+    cn03:
+      image_16To8Bit:
+        gray_threshold: 100
+        gray_min: 2000
+        gray_max: 6000
+      static_position: False
+      static_rotation: False
+      origin_mkv_file: "cn03/k4a_capture.mkv"
+      tracking_mkv_file: "cn03/k4a_capture.mkv"
+      intrinsic_file: "cn03/calib_raw.json"
+      extrinsic_file: "cn03/camera2world_opencv.json"
+      measurement_file: "cn03/target_points.txt"
+      result_file_init: "cn03/world2camera_init.json"
+      result_file: "cn03/world2camera_final.json"
+    cn04:
+      static_position: False
+      static_rotation: False
+      origin_mkv_file: "cn04/k4a_capture.mkv"
+      tracking_mkv_file: "cn04/k4a_capture.mkv"
+      intrinsic_file: "cn04/calib_raw.json"
+      extrinsic_file: "cn04/camera2world_opencv.json"
+      measurement_file: "cn04/target_points.txt"
+      result_file_init: "cn04/world2camera_init.json"
+      result_file: "cn04/world2camera_final.json"
+    cn05:
+      static_position: False
+      static_rotation: False
+      origin_mkv_file: "cn05/k4a_capture.mkv"
+      tracking_mkv_file: "cn05/k4a_capture.mkv"
+      intrinsic_file: "cn05/calib_raw.json"
+      extrinsic_file: "cn05/camera2world_opencv.json"
+      measurement_file: "cn05/target_points.txt"
+      result_file_init: "cn05/world2camera_init.json"
+      result_file: "cn05/world2camera_final.json"
+    cn06:
+      static_position: False
+      static_rotation: False
+      origin_mkv_file: "cn06/k4a_capture.mkv"
+      tracking_mkv_file: "cn06/k4a_capture.mkv"
+      intrinsic_file: "cn06/calib_raw.json"
+      extrinsic_file: "cn06/camera2world_opencv.json"
+      measurement_file: "cn06/target_points.txt"
+      result_file_init: "cn06/world2camera_init.json"
+      result_file: "cn06/world2camera_final.json"
+  target:
+    #model_file: "/home/frieder/projects/traact_workspace/traact_bundleadjustment/misc/BoardTarget_Narvis.json"
+    model_file: "/home/frieder/projects/traact_workspace/traact_bundleadjustment/misc/BoardTarget.json"
+    target_to_origin_file: "/home/frieder/projects/traact_workspace/traact_bundleadjustment/misc/rotated_narvisTarget2charucoMarker.json"
+    use_target_residual : False
+    target_residual_stddev : 0.1
+    #measurment_file: "/media/frieder/System/data/inm_ba/recording_20210504_Calib_2_Calib/CalibRecord_04.05.2021_2.c3d"
