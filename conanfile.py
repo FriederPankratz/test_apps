@@ -32,6 +32,7 @@ class TraactPackage(ConanFile):
     # overwrite these dependencies
     requires = (
         "eigen/3.4.0"
+        "spdlog/1.10.0"
     )
 
     def requirements(self):
