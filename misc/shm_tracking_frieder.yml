@@ -1,0 +1,15 @@
+config:
+  name: "init_tracking"
+  camera_count: 5
+  image_stream: "camera_x5_shm"
+  add_debug_view: True
+  add_init_tracking: False
+  add_tracking: True
+  add_write_ba_data : False
+  use_init_pose: True
+  buffer_size: 3
+  sensor_frequency: 30
+  cpu_count: 0
+  model_file: "/home/frieder/projects/traact_workspace/app_local/misc/BoardTarget.json"
+  init_file_pattern: "/home/frieder/data/recording_20210611_calib1/calibration/cn{0:02d}/camera2world.json"
+  data_file_pattern: "/home/frieder/data/recording_20210611_calib1/ba_data/{0}.json"

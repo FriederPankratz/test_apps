@@ -7,13 +7,14 @@
 #include <traact/vision/bundle_adjustment/BundleAdjustment.h>
 #include "BAProblemLoader.h"
 int main(int argc, char **argv) {
-
     using namespace traact;
     using namespace traact::vision;
     using namespace traact::vision::bundle_adjustment;
     using namespace traact::facade;
 
     util::initLogging(spdlog::level::debug);
+
+
 
 
     int camera_count = 6;

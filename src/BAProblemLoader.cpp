@@ -198,6 +198,8 @@ bool BAProblemLoader::LoadConfig(YAML::Node config) {
 
         if (!util::HasValue("result_file", parameter))
             return false;
+        if (!util::HasValue("result_internal_file", parameter))
+            return false;
         if (!util::HasValue("intrinsic_file", parameter))
             return false;
         if (!util::HasValue("extrinsic_file", parameter))
@@ -214,10 +216,12 @@ bool BAProblemLoader::LoadConfig(YAML::Node config) {
         auto measurement_file = parameter["measurement_file"].as<std::string>();
         auto feature_file = parameter["feature_file"].as<std::string>();
         auto result_file = parameter["result_file"].as<std::string>();
+        auto result_file_internal = parameter["result_internal_file"].as<std::string>();
         auto intrinsic_file = parameter["intrinsic_file"].as<std::string>();
         auto extrinsic_file = parameter["extrinsic_file"].as<std::string>();
 
         result_file = tracking_root_fp.resolve(result_file).fullPath();
+        result_file_internal = tracking_root_fp.resolve(result_file_internal).fullPath();
         intrinsic_file = tracking_root_fp.resolve(intrinsic_file).fullPath();
         extrinsic_file = tracking_root_fp.resolve(extrinsic_file).fullPath();
         measurement_file = tracking_root_fp.resolve(measurement_file).fullPath();
@@ -243,7 +247,7 @@ bool BAProblemLoader::LoadConfig(YAML::Node config) {
 
         ba_cam->setStaticPosition(static_position);
         ba_cam->setStaticRotation(static_rotation);
-        ba_cam->setResultfile(result_file);
+        ba_cam->setResultfile(result_file_internal);
 
         try {
             {
@@ -313,7 +317,9 @@ bool BAProblemLoader::LoadConfig(YAML::Node config) {
                 }
 
                 ba_->AddCamera(ba_cam);
+                artekmed_result_files_.emplace(cameras_.size(), result_file);
                 cameras_.emplace_back(ba_cam);
+
                 SPDLOG_INFO(ba_cam->toString());
             }
 
@@ -327,20 +333,6 @@ bool BAProblemLoader::LoadConfig(YAML::Node config) {
     }
 
 
-
-
-//    try{
-//        std::ifstream stream;
-//        stream.open(target_to_origin_file);
-//        cereal::JSONInputArchive archive(stream);
-//
-//        spatial::Pose6D data;
-//        archive(data);
-//        //ba_->SetTargetToOrigin(data);
-//    }catch(std::exception e){
-//        spdlog::spdlog_ex(e.what());
-//    }
-
     return true;
 }
 
@@ -353,12 +345,44 @@ void BAProblemLoader::SaveResults() {
     const auto results = ba_->getResult();
     for (int i = 0; i < cameras_.size() ; ++i) {
         auto& camera = cameras_[i];
-        camera->getResultfile();
         try{
-            std::ofstream stream;
-            stream.open(camera->getResultfile());
-            cereal::JSONOutputArchive archive(stream);
-            archive(results[i]);
+            {
+                std::ofstream stream;
+                stream.open(camera->getResultfile());
+                cereal::JSONOutputArchive archive(stream);
+                archive(results[i]);
+            }
+            {
+                auto world2camera_opencv = results[i].inverse();
+
+                // are artekmed poses not in opengl format?
+
+//                world2camera_opencv.matrix().row(1) = world2camera_opencv.matrix().row(1) * -1;
+//                world2camera_opencv.matrix().row(2) = world2camera_opencv.matrix().row(2) * -1;
+//                spatial::Pose6D final_pose = world2camera_opencv;
+
+//                spatial::Translation3D position_opencv = spatial::Translation3D(world2camera_opencv.translation());
+//                spatial::Rotation3D  rotation_opencv = spatial::Rotation3D(world2camera_opencv.rotation());
+//                spatial::Rotation3D  opencv_to_opengl(0,1,0,0);
+//                spatial::Pose6D position_opengl = opencv_to_opengl * position_opencv * opencv_to_opengl;
+//                spatial::Rotation3D rotation_opengl = opencv_to_opengl * rotation_opencv;
+//                spatial::Pose6D final_pose = position_opengl * rotation_opengl;
+
+                spatial::Pose6D pose_tmp = spatial::Pose6D::Identity();
+                pose_tmp.rotate( spatial::Rotation3D (0,1,0,0));
+
+                spatial::Pose6D pose_tmp2 = spatial::Pose6D::Identity();
+                pose_tmp2.rotate(spatial::Rotation3D(0.7071,-0.7071,0,0) * spatial::Rotation3D(0.7071,0,0,0.7071));
+
+                spatial::Pose6D final_pose = pose_tmp2 * world2camera_opencv * pose_tmp;
+
+                auto final_filename = artekmed_result_files_.at(i);
+                std::ofstream stream;
+                stream.open(final_filename);
+                cereal::JSONOutputArchive archive(stream);
+                archive(final_pose);
+            }
+
         }catch(std::exception& e){
             SPDLOG_ERROR(e.what());
         }
