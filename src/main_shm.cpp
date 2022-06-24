@@ -84,7 +84,6 @@ class TraactShmConfig {
         buffer::TimeDomainManagerConfig td_config;
         td_config.time_domain = 0;
         td_config.ringbuffer_size = config["buffer_size"].as<size_t>();
-        td_config.master_source = "source";
         td_config.source_mode = SourceMode::IMMEDIATE_RETURN;
         td_config.missing_source_event_mode = MissingSourceEventMode::WAIT_FOR_EVENT;
         td_config.max_offset = std::chrono::milliseconds(15);
@@ -341,16 +340,19 @@ class TraactShmConfig {
             return getIdxName(name, index);
         };
 
-        if(use_init_pose_) {
-            auto world_2_camera_pattern = graph->addPattern(get_name("camera2world"),
-                                                            my_facade.instantiatePattern(
-                                                                "FileReader_cereal_traact::spatial::Pose6D"));
-            world_2_camera_pattern->setParameter("file", fmt::format(init_file_pattern_, index + 1));
-        } else {
-            auto camera2world_pattern =
-                graph->addPattern(get_name("camera2world"), my_facade.instantiatePattern("InversionPose6D"));
-            graph->connect(get_name("calibration"), "output", get_name("camera2world"), "input");
+        if(!add_init_tracking_ && add_tracking_){
+            if(use_init_pose_) {
+                auto world_2_camera_pattern = graph->addPattern(get_name("camera2world"),
+                                                                my_facade.instantiatePattern(
+                                                                    "FileReader_cereal_traact::spatial::Pose6D"));
+                world_2_camera_pattern->setParameter("file", fmt::format(init_file_pattern_, index + 1));
+            } else {
+                auto camera2world_pattern =
+                    graph->addPattern(get_name("camera2world"), my_facade.instantiatePattern("InversionPose6D"));
+                graph->connect(get_name("calibration"), "output", get_name("camera2world"), "input");
+            }
         }
+
 
         auto calibration_pattern =
             graph->addPattern(get_name("calibration"),
@@ -468,7 +470,7 @@ int main(int argc, char **argv) {
 
     signal(SIGINT, ctrlC);
 
-    util::initLogging(spdlog::level::info);
+    util::initLogging(spdlog::level::trace);
 
     const std::string keys =
         "{help h usage ? |      | print this message   }"
@@ -504,20 +506,20 @@ int main(int argc, char **argv) {
     TraactShmConfig config_generator;
     auto graph = config_generator.create_config(config);
 
-//    std::string filename = graph->name + ".json";
-//    {
-//        nlohmann::json jsongraph;
-//        ns::to_json(jsongraph, *graph);
-//
-//        std::ofstream myfile;
-//        myfile.open(filename);
-//        myfile << jsongraph.dump(4);
-//        myfile.close();
-//
-//        std::cout << jsongraph.dump(4) << std::endl;
-//    }
+    std::string filename = graph->name + ".json";
+    {
+        nlohmann::json jsongraph;
+        ns::to_json(jsongraph, *graph);
 
-    my_facade.loadDataflow(graph);
+        std::ofstream graph_file;
+        graph_file.open(filename);
+        graph_file << jsongraph.dump(4);
+        graph_file.close();
+
+    }
+
+
+    my_facade.loadDataflow(filename);
 
     my_facade.blockingStart();
 
