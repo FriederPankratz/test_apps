@@ -4,9 +4,9 @@ config:
   image_stream: "camera_x5_shm"
   add_debug_view: True
   add_init_tracking: False
-  add_tracking: True
+  add_tracking: False
   add_write_ba_data : False
-  use_init_pose: True
+  use_init_pose: False
   buffer_size: 3
   sensor_frequency: 30
   cpu_count: 0
