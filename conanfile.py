@@ -32,7 +32,9 @@ class TraactPackage(ConanFile):
     # overwrite these dependencies
     requires = (
         "eigen/3.4.0",
-        "spdlog/1.10.0"
+        "spdlog/1.10.0",
+        "glfw/3.3.4",
+        "opencv/4.5.5@camposs/stable"
     )
 
     def requirements(self):
@@ -44,7 +46,7 @@ class TraactPackage(ConanFile):
         self.requires("traact_component_kinect_azure/1.0.0@traact/latest")
         self.requires("traact_component_cereal/1.0.0@traact/latest")
         self.requires("traact_component_aruco/1.0.0@traact/latest")
-        self.requires("traact_component_shm/1.0.0@traact/latest")
+        self.requires("traact_component_pcpd_shm/1.0.0@traact/latest")
         self.requires("yaml-cpp/0.6.3")
 
     def configure(self):

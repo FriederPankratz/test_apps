@@ -1,0 +1,15 @@
+config:
+  name: "init_tracking"
+  camera_count: 5
+  image_stream: "camera_streams_x5"
+  add_debug_view: True
+  add_init_tracking: False
+  add_tracking: False
+  add_write_ba_data : False
+  use_init_pose: False
+  buffer_size: 3
+  sensor_frequency: 30
+  cpu_count: 0
+  model_file: "/data/develop/traact_workspace/test_apps/misc/BoardTarget.json"
+  init_file_pattern: "/artekmed/config/calibration/cn{0:02d}/camera2world_init.json"
+  data_file_pattern: "/artekmed/recordings/ba_data/{0}.json"
