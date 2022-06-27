@@ -11,6 +11,7 @@
 #include <signal.h>
 #include <opencv2/core/utility.hpp>
 #include "util/YAMLUtil.h"
+#include <traact/vision.h>
 
 using namespace traact;
 using namespace traact::dataflow;
@@ -21,6 +22,17 @@ traact::facade::DefaultFacade my_facade;
 void ctrlC(int i) {
     SPDLOG_INFO("User requested exit (Ctrl-C).");
     my_facade.stop();
+}
+
+const static std::string kDebugImage{"image"};
+const static std::string kDebugPoint2D{"point2D"};
+const static std::string kDebugPoint3D{"point3D"};
+const static std::string kDebugCalibration{"calibration"};
+const static std::string kDebugPose6D{"pose6D"};
+const static std::string kDebugInitPose6D{"initPose6D"};
+
+std::string getRawAppPortName(std::string name, int idx) {
+    return fmt::format("{0}_{1}", idx, name);
 }
 
 std::string getIdxName(std::string name, int idx) {
@@ -62,12 +74,36 @@ class TraactShmConfig {
             graph->addPattern("image_source", my_facade.instantiatePattern("artekmed::ShmCompositeBufferSource"));
         source_pattern->setParameter("stream", image_stream_);
 
+        if(add_debug_view_){
+            // prepare a RawApplicationSyncSink with all ports used for debug rendering
+            auto debug_pattern = my_facade.instantiatePattern("RawApplicationSyncSink");
+            for (int camera_index = 0; camera_index < camera_count_; ++camera_index) {
+                debug_pattern->addConsumerPort(getRawAppPortName(kDebugImage, camera_index), traact::vision::ImageHeader::NativeTypeName);
+                debug_pattern->addConsumerPort(getRawAppPortName(kDebugPoint2D, camera_index), traact::vision::KeyPointListHeader::NativeTypeName);
+                debug_pattern->addConsumerPort(getRawAppPortName(kDebugCalibration, camera_index), traact::vision::CameraCalibrationHeader::NativeTypeName);
+
+                if(add_init_tracking_){
+                    debug_pattern->addConsumerPort(getRawAppPortName(kDebugPose6D, camera_index), traact::spatial::Pose6DHeader::NativeTypeName);
+                    debug_pattern->addConsumerPort(getRawAppPortName(kDebugInitPose6D, camera_index), traact::spatial::Pose6DHeader::NativeTypeName);
+                }
+                if(add_tracking_){
+                    debug_pattern->addConsumerPort(getRawAppPortName(kDebugPoint3D, camera_index), traact::vision::Position3DListHeader::NativeTypeName);
+                    debug_pattern->addConsumerPort(getRawAppPortName(kDebugPose6D, camera_index), traact::spatial::Pose6DHeader::NativeTypeName);
+                }
+            }
+
+            graph->addPattern("debug_sink", debug_pattern);
+        }
+
         for (int camera_index = 0; camera_index < camera_count_; ++camera_index) {
             auto &ir_group = source_pattern->instantiatePortGroup("ir_image");
             ir_group.setParameter("channel", fmt::format("camera{0:02d}_infraredimage", camera_index + 1));
             addBasicProcessing(graph, camera_index, ir_group);
             if (add_debug_view_) {
-                addDebugView(graph, camera_index);
+                //addDebugView(graph, camera_index);
+                graph->connect(getIdxName("undistort", camera_index), "output", "debug_sink", getRawAppPortName(kDebugImage, camera_index));
+                graph->connect(getIdxName("undistort", camera_index), "output_calibration", "debug_sink", getRawAppPortName(kDebugCalibration, camera_index));
+                graph->connect(getIdxName("blob_detection",camera_index), "output", "debug_sink", getRawAppPortName(kDebugPoint2D, camera_index));
             }
         }
         if (add_init_tracking_) {
@@ -208,14 +244,18 @@ class TraactShmConfig {
                 auto pose_multiplication_pattern =
                     graph->addPattern(get_name("pose_multiplication"),
                                       my_facade.instantiatePattern("MultiplicationPose6DPose6D"));
-                auto render_global_pose_pattern =
-                    graph->addPattern(get_name("render_global_pose"), my_facade.instantiatePattern("RenderPose6D"));
-                render_global_pose_pattern->setParameter("Window", get_name("Camera"));
+//                auto render_global_pose_pattern =
+//                    graph->addPattern(get_name("render_global_pose"), my_facade.instantiatePattern("RenderPose6D"));
+//                render_global_pose_pattern->setParameter("Window", get_name("Camera"));
                 graph->connect(get_name("camera2world"), "output", get_name("pose_multiplication"), "input_a");
                 graph->connect("track_target", "output", get_name("pose_multiplication"), "input_b");
-                graph->connect(get_name("pose_multiplication"), "output", get_name("render_global_pose"), "input");
-                graph->connect(get_name("undistort"), "output_calibration",
-                               get_name("render_global_pose"), "input_calibration");
+
+//                graph->connect(get_name("pose_multiplication"), "output", get_name("render_global_pose"), "input");
+//                graph->connect(get_name("undistort"), "output_calibration",
+//                               get_name("render_global_pose"), "input_calibration");
+
+                graph->connect(get_name("pose_multiplication"), "output", "debug_sink", getRawAppPortName(kDebugPose6D, index));
+
             }
 
         }
@@ -234,10 +274,10 @@ class TraactShmConfig {
             auto point_multiplication_pattern =
                 graph->addPattern(get_name("point_multiplication"),
                                   my_facade.instantiatePattern("MultiplicationPose6DPosition3DList"));
-            auto render_points_pattern =
-                graph->addPattern(get_name("render_3d_points"), my_facade.instantiatePattern("RenderPosition3DList"));
-
-            render_points_pattern->setParameter("Window", get_name("Camera"));
+//            auto render_points_pattern =
+//                graph->addPattern(get_name("render_3d_points"), my_facade.instantiatePattern("RenderPosition3DList"));
+//
+//            render_points_pattern->setParameter("Window", get_name("Camera"));
 
             auto &new_port_group = point_estimation_pattern->instantiatePortGroup("camera");
 
@@ -252,11 +292,15 @@ class TraactShmConfig {
 
             graph->connect(get_name("camera2world"), "output", get_name("point_multiplication"), "input_a");
             graph->connect("point_estimation", "output", get_name("point_multiplication"), "input_b");
-            graph->connect(get_name("point_multiplication"), "output", get_name("render_3d_points"), "input");
-            graph->connect(get_name("undistort"),
-                           "output_calibration",
-                           get_name("render_3d_points"),
-                           "input_calibration");
+
+//            graph->connect(get_name("point_multiplication"), "output", get_name("render_3d_points"), "input");
+//            graph->connect(get_name("undistort"),
+//                           "output_calibration",
+//                           get_name("render_3d_points"),
+//                           "input_calibration");
+            if(add_debug_view_){
+                graph->connect(get_name("point_multiplication"), "output", "debug_sink", getRawAppPortName(kDebugPoint3D, index));
+            }
 
         }
 
@@ -274,24 +318,24 @@ class TraactShmConfig {
             };
             auto estimate_pose_pattern =
                 graph->addPattern(get_name("estimate_pose"), my_facade.instantiatePattern("BruteForceEstimatePose"));
-            auto render_init_pose_pattern =
-                graph->addPattern(get_name("render_init_pose"), my_facade.instantiatePattern("RenderPose6D"));
+//            auto render_init_pose_pattern =
+//                graph->addPattern(get_name("render_init_pose"), my_facade.instantiatePattern("RenderPose6D"));
             auto write_init_pattern = graph->addPattern(get_name("write_init"),
                                                         my_facade.instantiatePattern(
                                                             "FileWriter_cereal_traact::spatial::Pose6D"));
-            auto render_pose_pattern =
-                graph->addPattern(get_name("render_pose"), my_facade.instantiatePattern("RenderPose6D"));
+//            auto render_pose_pattern =
+//                graph->addPattern(get_name("render_pose"), my_facade.instantiatePattern("RenderPose6D"));
 
             estimate_pose_pattern->setParameter("maxPointDistance", 150.0);
             estimate_pose_pattern->setParameter("minError", 0.5);
             estimate_pose_pattern->setParameter("maxError", 1.0);
-            render_pose_pattern->setParameter("Window", get_name("Camera"));
+            //render_pose_pattern->setParameter("Window", get_name("Camera"));
 
             graph->connect(get_name("blob_detection"), "output", get_name("estimate_pose"), "input");
             graph->connect(get_name("undistort"), "output_calibration", get_name("estimate_pose"), "input_calibration");
             graph->connect("target_model", "output", get_name("estimate_pose"), "input_model");
 
-            render_init_pose_pattern->setParameter("Window", get_name("Camera"));
+            //render_init_pose_pattern->setParameter("Window", get_name("Camera"));
             write_init_pattern->setParameter("file", fmt::format(init_file_pattern_, index + 1));
 
             auto &new_port_group = gather_init_pattern->instantiatePortGroup("Camera");
@@ -301,14 +345,21 @@ class TraactShmConfig {
             graph->connect(gather_init_pattern->instance_id, new_port_group.getProducerPortName("output"),
                            get_name("write_init"), "input");
 
-            graph->connect(gather_init_pattern->instance_id, new_port_group.getProducerPortName("output"),
-                           get_name("render_init_pose"), "input");
-            graph->connect(get_name("undistort"),
-                           "output_calibration",
-                           get_name("render_init_pose"),
-                           "input_calibration");
-            graph->connect(get_name("estimate_pose"), "output", get_name("render_pose"), "input");
-            graph->connect(get_name("undistort"), "output_calibration", get_name("render_pose"), "input_calibration");
+
+
+//            graph->connect(gather_init_pattern->instance_id, new_port_group.getProducerPortName("output"),
+//                           get_name("render_init_pose"), "input");
+//            graph->connect(get_name("undistort"),
+//                           "output_calibration",
+//                           get_name("render_init_pose"),
+//                           "input_calibration");
+//
+//            graph->connect(get_name("estimate_pose"), "output", get_name("render_pose"), "input");
+//            graph->connect(get_name("undistort"), "output_calibration", get_name("render_pose"), "input_calibration");
+            if(add_debug_view_){
+                graph->connect(gather_init_pattern->instance_id, new_port_group.getProducerPortName("output"), "debug_sink", getRawAppPortName(kDebugInitPose6D, index));
+                graph->connect(get_name("estimate_pose"), "output", "debug_sink", getRawAppPortName(kDebugPose6D, index));
+            }
 
         }
 
