@@ -391,6 +391,10 @@ class TraactShmConfig {
             return getIdxName(name, index);
         };
 
+        auto calibration_pattern =
+            graph->addPattern(get_name("calibration"),
+                              my_facade.instantiatePattern("artekmed::ShmSensorCalibrationSource"));
+
         if(!add_init_tracking_ && add_tracking_){
             if(use_init_pose_) {
                 auto world_2_camera_pattern = graph->addPattern(get_name("camera2world"),
@@ -405,9 +409,6 @@ class TraactShmConfig {
         }
 
 
-        auto calibration_pattern =
-            graph->addPattern(get_name("calibration"),
-                              my_facade.instantiatePattern("artekmed::ShmSensorCalibrationSource"));
 
         auto convert_to_gray_pattern =
             graph->addPattern(get_name("convert_to_gray"), my_facade.instantiatePattern("OpenCvConvertImage"));
@@ -513,6 +514,16 @@ bool hasConfigError(const YAML::Node &config) {
     return false;
 }
 
+void writeTraactFile(const DefaultInstanceGraphPtr &graph) {
+    std::string filename = graph->name + ".json";
+    nlohmann::json jsongraph;
+    ns::to_json(jsongraph, *graph);
+
+    std::ofstream graph_file;
+    graph_file.open(filename);
+    graph_file << jsongraph.dump(4);
+    graph_file.close();
+}
 int main(int argc, char **argv) {
 
     using namespace traact;
@@ -554,25 +565,66 @@ int main(int argc, char **argv) {
         return 0;
     }
 
-    TraactShmConfig config_generator;
-    auto graph = config_generator.create_config(config);
 
-    std::string filename = graph->name + ".json";
+
+
     {
-        nlohmann::json jsongraph;
-        ns::to_json(jsongraph, *graph);
-
-        std::ofstream graph_file;
-        graph_file.open(filename);
-        graph_file << jsongraph.dump(4);
-        graph_file.close();
+        config["name"] = "tracking_init_pose";
+        config["add_init_tracking"] = true;
+        config["add_tracking"] = false;
+        config["add_write_ba_data"] = false;
+        config["use_init_pose"] = false;
+        TraactShmConfig config_generator;
+        auto graph = config_generator.create_config(config);
+        writeTraactFile(graph);
 
     }
 
+    {
+        config["name"] = "tracking_init_gather_using_init_pose";
+        config["add_init_tracking"] = false;
+        config["add_tracking"] = true;
+        config["add_write_ba_data"] = true;
+        config["use_init_pose"] = true;
+        TraactShmConfig config_generator;
+        auto graph = config_generator.create_config(config);
+        writeTraactFile(graph);
+    }
+    {
+        config["name"] = "tracking_init_gather_using_config_pose";
+        config["add_init_tracking"] = false;
+        config["add_tracking"] = true;
+        config["add_write_ba_data"] = true;
+        config["use_init_pose"] = false;
+        TraactShmConfig config_generator;
+        auto graph = config_generator.create_config(config);
+        writeTraactFile(graph);
+    }
+    {
+        config["name"] = "tracking_using_init_pose";
+        config["add_init_tracking"] = false;
+        config["add_tracking"] = true;
+        config["add_write_ba_data"] = false;
+        config["use_init_pose"] = true;
+        TraactShmConfig config_generator;
+        auto graph = config_generator.create_config(config);
+        writeTraactFile(graph);
+    }
+    {
+        config["name"] = "tracking_using_config_pose";
+        config["add_init_tracking"] = false;
+        config["add_tracking"] = true;
+        config["add_write_ba_data"] = false;
+        config["use_init_pose"] = false;
+        TraactShmConfig config_generator;
+        auto graph = config_generator.create_config(config);
+        writeTraactFile(graph);
+    }
 
-    my_facade.loadDataflow(filename);
 
-    my_facade.blockingStart();
+    //my_facade.loadDataflow(filename);
+
+    //my_facade.blockingStart();
 
     SPDLOG_INFO("exit program");
 

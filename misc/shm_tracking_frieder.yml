@@ -10,6 +10,6 @@ config:
   buffer_size: 3
   sensor_frequency: 30
   cpu_count: 0
-  model_file: "/home/frieder/projects/traact_workspace/app_local/misc/BoardTarget.json"
-  init_file_pattern: "/home/frieder/data/recording_20210611_calib1/calibration/cn{0:02d}/camera2world.json"
+  model_file: "/home/frieder/projects/traact_workspace/test_apps/misc/BoardTarget.json"
+  init_file_pattern: "/home/frieder/data/recording_20210611_calib1/calibration/cn{0:02d}/camera2world_init.json"
   data_file_pattern: "/home/frieder/data/recording_20210611_calib1/ba_data/{0}.json"

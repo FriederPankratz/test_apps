@@ -22,7 +22,7 @@ int main(int argc, char **argv) {
     std::string result_file_pattern =           "/home/frieder/data/recording_20210611_calib1/data/{0}.json";
     std::string result_camera_file_pattern =    "/home/frieder/data/recording_20210611_calib1/data/{0}_{1:02d}.json";
 
-    std::string config_file = "/home/frieder/projects/traact_workspace/app_local/misc/inm_ba.yml";
+    std::string config_file = "/home/frieder/projects/traact_workspace/test_apps/misc/inm_ba_frieder.yml";
 
     traact::BAProblemLoader problem_loader;
     if(!problem_loader.LoadConfig(config_file)){

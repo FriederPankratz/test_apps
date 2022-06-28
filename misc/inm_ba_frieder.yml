@@ -55,7 +55,7 @@ ba:
       result_internal_file: "calibration/cn05/camera2world_opencv.json"
       result_file: "calibration/cn05/world2camera.json"
   target:
-    model_file: "/home/frieder/projects/traact_workspace/app_local/misc/BoardTarget.json"
+    model_file: "/home/frieder/projects/traact_workspace/test_apps/misc/BoardTarget.json"
     target_pose_file: "ba_data/target_pose.json"
     target_feature_file: "ba_data/target_feature.json"
     point_3D_feature_file: "ba_data/point_3D_feature.json"
