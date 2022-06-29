@@ -11,8 +11,19 @@
 #include <signal.h>
 #include <spdlog/sinks/basic_file_sink.h>
 
+#include <traact/vision.h>
+
 using namespace traact;
 using namespace traact::dataflow;
+
+const static std::string kDebugImage{"image"};
+const static std::string kDebugPoint2D{"point2D"};
+const static std::string kDebugPoint3D{"point3D"};
+const static std::string kDebugCalibration{"calibration"};
+const static std::string kDebugPose6D{"pose6D"};
+std::string getRawAppPortName(std::string name, int idx) {
+    return fmt::format("{0}_{1}", idx, name);
+}
 
 void calcAlphaBeta(double threshold, double min, double max, double &alpha, double &beta) {
     alpha = 255.0 / (max - min);
@@ -44,7 +55,7 @@ void addTarget(traact::DefaultInstanceGraphPtr &graph) {
                                                   my_facade.instantiatePattern(
                                                       "FileReader_cereal_traact::vision::Position3DList"));
     target_model_pattern->setParameter("file",
-                                       "/home/frieder/projects/traact_workspace/app_local/misc/BoardTarget.json");
+                                       "/home/frieder/projects/traact_workspace/test_apps/misc/BoardTarget.json");
 }
 
 void addOutsideInTargetRecord(traact::DefaultInstanceGraphPtr &graph,
@@ -120,9 +131,6 @@ void addOutsideInTargetTracking(traact::DefaultInstanceGraphPtr &graph, int came
         auto pose_multiplication_pattern =
             graph->addPattern(get_name("pose_multiplication"),
                               my_facade.instantiatePattern("MultiplicationPose6DPose6D"));
-        auto render_global_pose_pattern =
-            graph->addPattern(get_name("render_global_pose"), my_facade.instantiatePattern("RenderPose6D"));
-        render_global_pose_pattern->setParameter("Window", get_name("Camera"));
 
         auto &track_target_group = track_target_pattern->instantiatePortGroup("camera");
 
@@ -137,11 +145,7 @@ void addOutsideInTargetTracking(traact::DefaultInstanceGraphPtr &graph, int came
 
         graph->connect(get_name("read_camera2world"), "output", get_name("pose_multiplication"), "input_a");
         graph->connect("track_target", "output", get_name("pose_multiplication"), "input_b");
-        graph->connect(get_name("pose_multiplication"), "output", get_name("render_global_pose"), "input");
-        graph->connect(get_name("undistort"),
-                       "output_calibration",
-                       get_name("render_global_pose"),
-                       "input_calibration");
+        graph->connect(get_name("pose_multiplication"), "output", "debug_sink", getRawAppPortName(kDebugPose6D, index));
 
     }
 
@@ -164,11 +168,8 @@ void addPointEstimation(traact::DefaultInstanceGraphPtr &graph,
         auto point_multiplication_pattern =
             graph->addPattern(get_name("point_multiplication"),
                               my_facade.instantiatePattern("MultiplicationPose6DPosition3DList"));
-        auto render_points_pattern =
-            graph->addPattern(get_name("render_3d_points"), my_facade.instantiatePattern("RenderPosition3DList"));
 
         camera_2_world_pattern->setParameter("file", fmt::format(camera2world_filename, index + 1));
-        render_points_pattern->setParameter("Window", get_name("Camera"));
 
         auto &new_port_group = point_estimation_pattern->instantiatePortGroup("camera");
 
@@ -183,8 +184,9 @@ void addPointEstimation(traact::DefaultInstanceGraphPtr &graph,
 
         graph->connect(get_name("read_camera2world"), "output", get_name("point_multiplication"), "input_a");
         graph->connect("point_estimation", "output", get_name("point_multiplication"), "input_b");
-        graph->connect(get_name("point_multiplication"), "output", get_name("render_3d_points"), "input");
-        graph->connect(get_name("undistort"), "output_calibration", get_name("render_3d_points"), "input_calibration");
+        graph->connect(get_name("point_multiplication"), "output",  "debug_sink", getRawAppPortName(kDebugPoint3D, index));
+
+
 
     }
 
@@ -243,16 +245,10 @@ void addDebugView(traact::DefaultInstanceGraphPtr &graph, int index) {
         return getIdxName(name, index);
     };
 
-    auto
-        render_image_pattern = graph->addPattern(get_name("render_image"), my_facade.instantiatePattern("RenderImage"));
-    auto render_points_pattern =
-        graph->addPattern(get_name("render_points"), my_facade.instantiatePattern("RenderKeyPointList"));
 
-    render_image_pattern->setParameter("Window", get_name("Camera"));
-    render_points_pattern->setParameter("Window", get_name("Camera"));
-
-    graph->connect(get_name("undistort"), "output", get_name("render_image"), "input");
-    graph->connect(get_name("blob_detection"), "output", get_name("render_points"), "input");
+    graph->connect(get_name("undistort"), "output", "debug_sink", getRawAppPortName(kDebugImage, index));
+    graph->connect(get_name("undistort"), "output_calibration", "debug_sink", getRawAppPortName(kDebugCalibration, index));
+    graph->connect(get_name("blob_detection"), "output", "debug_sink", getRawAppPortName(kDebugPoint2D, index));
 
 }
 
@@ -329,15 +325,28 @@ int main(int argc, char **argv) {
 
     util::initLogging(spdlog::level::debug);
 
-    DefaultInstanceGraphPtr graph = std::make_shared<DefaultInstanceGraph>("tracking");
+    DefaultInstanceGraphPtr graph = std::make_shared<DefaultInstanceGraph>("tracking_from_mkv");
 
-    int camera_count = 6;
+    int camera_count = 5;
     std::string video_pattern = "/home/frieder/data/recording_20210611_calib1/cn{0:02d}/k4a_capture.mkv";
     //std::string init_file_pattern = "/home/frieder/data/recording_20210611_calib1/cn{0:02d}/new_camera2world.json";
-    std::string init_file_pattern = "/home/frieder/data/recording_20210611_calib1/cn{0:02d}/camera2world_final.json";
+    std::string init_file_pattern = "/home/frieder/data/recording_20210611_calib1/calibration/cn{0:02d}/camera2world_opencv.json";
 
     std::string result_file_pattern =           "/home/frieder/data/recording_20210611_calib1/data2/{0}.json";
     std::string result_camera_file_pattern =    "/home/frieder/data/recording_20210611_calib1/data2/{0}_{1:02d}.json";
+
+    // prepare a RawApplicationSyncSink with all ports used for debug rendering
+    auto debug_pattern = my_facade.instantiatePattern("RawApplicationSyncSink");
+    for (int camera_index = 0; camera_index < camera_count; ++camera_index) {
+        debug_pattern->addConsumerPort(getRawAppPortName(kDebugImage, camera_index), traact::vision::ImageHeader::NativeTypeName);
+        debug_pattern->addConsumerPort(getRawAppPortName(kDebugPoint2D, camera_index), traact::vision::KeyPointListHeader::NativeTypeName);
+        debug_pattern->addConsumerPort(getRawAppPortName(kDebugCalibration, camera_index), traact::vision::CameraCalibrationHeader::NativeTypeName);
+
+        debug_pattern->addConsumerPort(getRawAppPortName(kDebugPoint3D, camera_index), traact::vision::Position3DListHeader::NativeTypeName);
+        debug_pattern->addConsumerPort(getRawAppPortName(kDebugPose6D, camera_index), traact::spatial::Pose6DHeader::NativeTypeName);
+    }
+
+    graph->addPattern("debug_sink", debug_pattern);
 
     for (int camera_index = 0; camera_index < camera_count; ++camera_index) {
         auto video_file =
@@ -349,7 +358,7 @@ int main(int argc, char **argv) {
     //addInitTracking(graph, camera_count, init_file_pattern);
     addPointEstimation(graph, camera_count, init_file_pattern);
     addOutsideInTargetTracking(graph, camera_count);
-    addOutsideInTargetRecord(graph, camera_count, result_file_pattern, result_camera_file_pattern);
+    //addOutsideInTargetRecord(graph, camera_count, result_file_pattern, result_camera_file_pattern);
 
     buffer::TimeDomainManagerConfig td_config;
     td_config.time_domain = 0;
@@ -366,22 +375,22 @@ int main(int argc, char **argv) {
 
 
 
-//    std::string filename = graph->name + ".json";
-//    {
-//        nlohmann::json jsongraph;
-//        ns::to_json(jsongraph, *graph);
-//
-//        std::ofstream myfile;
-//        myfile.open(filename);
-//        myfile << jsongraph.dump(4);
-//        myfile.close();
-//
-//        std::cout << jsongraph.dump(4) << std::endl;
-//    }
+    std::string filename = graph->name + ".json";
+    {
+        nlohmann::json jsongraph;
+        ns::to_json(jsongraph, *graph);
 
-    my_facade.loadDataflow(graph);
+        std::ofstream myfile;
+        myfile.open(filename);
+        myfile << jsongraph.dump(4);
+        myfile.close();
 
-    my_facade.blockingStart();
+        std::cout << jsongraph.dump(4) << std::endl;
+    }
+
+//    my_facade.loadDataflow(graph);
+//
+//    my_facade.blockingStart();
 
     SPDLOG_INFO("exit program");
 
