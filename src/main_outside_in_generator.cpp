@@ -214,6 +214,11 @@ class TraactShmConfig {
             auto calibration_writer_pattern =
                 graph->addPattern(get_name("calibration_writer"),
                                   my_facade.instantiatePattern("FileWriter_cereal_traact::vision::CameraCalibration"));
+
+            auto init_pose_writer_pattern =
+                    graph->addPattern(get_name("init_pose_writer"),
+                                      my_facade.instantiatePattern("FileWriter_cereal_traact::spatial::Pose6D"));
+
             auto point_2D_recorder_pattern =
                 graph->addPattern(get_name("point_2D_recorder"),
                                   my_facade.instantiatePattern("FileRecorder_cereal_traact::vision::KeyPointList"));
@@ -227,9 +232,12 @@ class TraactShmConfig {
                            "output_feature",
                            get_name("point_2D_feature_recorder"),
                            "input");
+            graph->connect(get_name("camera2world"), "output", get_name("init_pose_writer"), "input");
 
             calibration_writer_pattern->setParameter("file",
                                                      getCameraFileName(data_file_pattern_, "calibration", index));
+            init_pose_writer_pattern->setParameter("file",
+                                                   getCameraFileName(data_file_pattern_, "camera2world_init", index));
             point_2D_recorder_pattern->setParameter("file",
                                                     getCameraFileName(data_file_pattern_, "point_2D", index));
             point_2D_feature_recorder_pattern->setParameter("file",
