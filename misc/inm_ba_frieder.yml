@@ -6,8 +6,8 @@ config:
   show_tracking_render: True
 ba:
   default:
-    init_root_folder: "/home/frieder/data/recording_20210611_calib1/"
-    tracking_root_folder: "/home/frieder/data/recording_20210611_calib1/"    
+    init_root_folder: "/home/frieder/data/recording_rtw_calib/"
+    tracking_root_folder: "/home/frieder/data/recording_rtw_calib/"
   cameras:
     cn01:
       static_position: True
@@ -61,5 +61,5 @@ ba:
     point_3D_feature_file: "ba_data/point_3D_feature.json"
     #target_to_origin_file: "/home/frieder/projects/traact_workspace/traact_bundleadjustment/misc/rotated_narvisTarget2charucoMarker.json"
     use_target_residual: False
-    target_residual_stddev: 0.1
+    target_residual_stddev: 0.005
     #measurment_file: "/media/frieder/System/ba_data/inm_ba/recording_20210504_Calib_2_Calib/CalibRecord_04.05.2021_2.c3d"

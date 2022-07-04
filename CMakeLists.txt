@@ -23,8 +23,8 @@ conan_target_link_libraries(${CONAN_PACKAGE_NAME})
 add_executable(bundle_adjustment src/main_bundle_adjustment.cpp src/BAProblemLoader.cpp src/BAProblemLoader.h src/util/YAMLUtil.h src/util/YAMLUtil.cpp)
 conan_target_link_libraries(bundle_adjustment)
 
-add_executable(shm_tracking src/main_shm.cpp src/util/YAMLUtil.cpp)
-conan_target_link_libraries(shm_tracking)
+add_executable(outside_in_generator src/main_outside_in_generator.cpp src/util/YAMLUtil.cpp)
+conan_target_link_libraries(outside_in_generator)
 
 #add_executable(${CONAN_PACKAGE_NAME}_fractal src/main_fractal.cpp)
 #conan_target_link_libraries(${CONAN_PACKAGE_NAME}_fractal)

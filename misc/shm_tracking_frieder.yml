@@ -6,10 +6,14 @@ config:
   add_init_tracking: False
   add_tracking: False
   add_write_ba_data : False
+  add_http_sink : True
   use_init_pose: False
   buffer_size: 3
   sensor_frequency: 30
   cpu_count: 0
   model_file: "/home/frieder/projects/traact_workspace/test_apps/misc/BoardTarget.json"
-  init_file_pattern: "/home/frieder/data/recording_20210611_calib1/calibration/cn{0:02d}/camera2world_init.json"
-  data_file_pattern: "/home/frieder/data/recording_20210611_calib1/ba_data/{0}.json"
+  init_file_pattern: "/home/frieder/data/recording_rtw_calib/calibration/cn{0:02d}/camera2world_init.json"
+  final_file_pattern: "/home/frieder/data/recording_rtw_calib/calibration/cn{0:02d}/camera2world_opencv.json"
+  data_file_pattern: "/home/frieder/data/recording_rtw_calib/ba_data/{0}.json"
+  use_shm: False
+  video_file_pattern: "/home/frieder/data/recording_rtw_calib/cn{0:02d}/k4a_capture.mkv"

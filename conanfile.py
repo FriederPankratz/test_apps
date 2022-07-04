@@ -47,6 +47,7 @@ class TraactPackage(ConanFile):
         self.requires("traact_component_cereal/1.0.0@traact/latest")
         self.requires("traact_component_aruco/1.0.0@traact/latest")
         self.requires("traact_component_pcpd_shm/1.0.0@traact/latest")
+        self.requires("traact_component_http/1.0.0@traact/latest")
         self.requires("yaml-cpp/0.6.3")
 
     def configure(self):
