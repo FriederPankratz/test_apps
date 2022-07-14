@@ -71,6 +71,7 @@ class TraactShmConfig {
         add_http_sink_  = config["add_http_sink"].as<bool>();
         use_init_pose_ = config["use_init_pose"].as<bool>();
         use_shm_ = config["use_shm"].as<bool>();
+        use_cuda_ = config["use_cuda"].as<bool>();
 
         if(add_debug_view_){
             // prepare a RawApplicationSyncSink with all ports used for debug rendering
@@ -129,7 +130,12 @@ class TraactShmConfig {
 
             if (add_debug_view_) {
                 //addDebugView(graph, camera_index);
-                graph->connect(getIdxName("undistort", camera_index), "output", "debug_sink", getRawAppPortName(kDebugImage, camera_index));
+                if(use_cuda_){
+                    graph->connect(getIdxName("download", camera_index), "output", "debug_sink", getRawAppPortName(kDebugImage, camera_index));
+                } else {
+                    graph->connect(getIdxName("undistort", camera_index), "output", "debug_sink", getRawAppPortName(kDebugImage, camera_index));
+                }
+
                 graph->connect(getIdxName("undistort", camera_index), "output_calibration", "debug_sink", getRawAppPortName(kDebugCalibration, camera_index));
                 graph->connect(getIdxName("blob_detection",camera_index), "output", "debug_sink", getRawAppPortName(kDebugPoint2D, camera_index));
             }
@@ -175,6 +181,7 @@ class TraactShmConfig {
     bool add_http_sink_;
     bool use_init_pose_;
     bool use_shm_;
+    bool use_cuda_;
     std::string video_file_pattern_;
     std::string final_file_pattern_;
 
@@ -432,24 +439,31 @@ class TraactShmConfig {
             }
         }
 
+        std::shared_ptr<traact::pattern::instance::PatternInstance> convert_to_gray_pattern;
+        std::shared_ptr<traact::pattern::instance::PatternInstance> undistort_pattern;
+
+        if(use_cuda_){
+            auto upload_pattern =
+                graph->addPattern(get_name("upload"), my_facade.instantiatePattern("OpenCvGpuUpload"));
+            convert_to_gray_pattern =
+                graph->addPattern(get_name("convert_to_gray"), my_facade.instantiatePattern("OpenCvGpuConvertImage"));
+            undistort_pattern =
+                graph->addPattern(get_name("undistort"), my_facade.instantiatePattern("OpenCvGpuUndistortImage"));
+            auto download_pattern =
+                graph->addPattern(get_name("download"), my_facade.instantiatePattern("OpenCvGpuDownload"));
+        } else {
+            convert_to_gray_pattern =
+                graph->addPattern(get_name("convert_to_gray"), my_facade.instantiatePattern("OpenCvConvertImage"));
+            undistort_pattern =
+                graph->addPattern(get_name("undistort"), my_facade.instantiatePattern("OpenCvUndistortImage"));
+        }
 
 
-        auto convert_to_gray_pattern =
-            graph->addPattern(get_name("convert_to_gray"), my_facade.instantiatePattern("OpenCvConvertImage"));
-        auto undistort_pattern =
-            graph->addPattern(get_name("undistort"), my_facade.instantiatePattern("OpenCvUndistortImage"));
 
         auto blob_detection_pattern =
             graph->addPattern(get_name("blob_detection"), my_facade.instantiatePattern("OpenCvBlobDetection"));
 
-
-
-        //auto refine_circles_pattern = graph->addPattern(getName("refine_circles"), my_facade.instantiatePattern("RefineCircles"));
-
         // configure
-
-
-
         int gray_threshold = 80;
         int max_blob_size = 24;
         double alpha, beta;
@@ -480,17 +494,39 @@ class TraactShmConfig {
 
         // setup connections
         if(use_shm_){
-            graph->connect("image_source", ir_output, get_name("convert_to_gray"), "input");
+
             graph->connect(get_name("calibration"), "output_ir_calibration", get_name("undistort"), "input_calibration");
         } else {
-            graph->connect(ir_output, "output_ir", get_name("convert_to_gray"), "input");
+
             graph->connect(ir_output, "output_ir_calibration", get_name("undistort"), "input_calibration");
         }
 
 
-        graph->connect(get_name("convert_to_gray"), "output", get_name("undistort"), "input");
+        if(use_cuda_){
 
-        graph->connect(get_name("undistort"), "output", get_name("blob_detection"), "input");
+            if(use_shm_) {
+                graph->connect("image_source", ir_output, get_name("upload"), "input");
+                graph->connect(get_name("upload"), "output", get_name("convert_to_gray"), "input");
+            } else {
+                graph->connect(ir_output, "output_ir", get_name("upload"), "input");
+                graph->connect(get_name("upload"), "output", get_name("convert_to_gray"), "input");
+            }
+
+            graph->connect(get_name("convert_to_gray"), "output", get_name("undistort"), "input");
+            graph->connect(get_name("undistort"), "output", get_name("download"), "input");
+            graph->connect(get_name("download"), "output", get_name("blob_detection"), "input");
+        } else {
+
+            if(use_shm_) {
+                graph->connect("image_source", ir_output, get_name("convert_to_gray"), "input");
+            } else {
+                graph->connect(ir_output, "output_ir", get_name("convert_to_gray"), "input");
+            }
+
+            graph->connect(get_name("convert_to_gray"), "output", get_name("undistort"), "input");
+            graph->connect(get_name("undistort"), "output", get_name("blob_detection"), "input");
+        }
+
         //graph->connect(get_name("undistort"), "output", get_name("refine_circles"), "input");
         //graph->connect(get_name("blob_detection"), "output", get_name("refine_circles"), "input_points");
 
@@ -546,6 +582,10 @@ bool hasConfigError(const YAML::Node &config) {
         return true;
     }
     if (!util::HasValue("use_shm", config)) {
+        return true;
+    }
+
+    if (!util::HasValue("use_cuda", config)) {
         return true;
     }
 

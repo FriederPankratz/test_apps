@@ -8,6 +8,7 @@ config:
   add_write_ba_data : False
   add_http_sink : True
   use_init_pose: False
+  use_cuda: True
   buffer_size: 3
   sensor_frequency: 30
   cpu_count: 0
