@@ -452,13 +452,13 @@ class TraactShmConfig {
 
         if(use_cuda_){
             auto upload_pattern =
-                graph->addPattern(get_name("upload"), my_facade.instantiatePattern("OpenCvGpuUpload"));
+                graph->addPattern(get_name("upload"), my_facade.instantiatePattern("OpenCvCudaUpload"));
             convert_to_gray_pattern =
-                graph->addPattern(get_name("convert_to_gray"), my_facade.instantiatePattern("OpenCvGpuConvertImage"));
+                graph->addPattern(get_name("convert_to_gray"), my_facade.instantiatePattern("OpenCvCudaConvertImage"));
             undistort_pattern =
-                graph->addPattern(get_name("undistort"), my_facade.instantiatePattern("OpenCvGpuUndistortImage"));
+                graph->addPattern(get_name("undistort"), my_facade.instantiatePattern("OpenCvCudaUndistortImage"));
             auto download_pattern =
-                graph->addPattern(get_name("download"), my_facade.instantiatePattern("OpenCvGpuDownload"));
+                graph->addPattern(get_name("download"), my_facade.instantiatePattern("OpenCvCudaDownload"));
         } else {
             convert_to_gray_pattern =
                 graph->addPattern(get_name("convert_to_gray"), my_facade.instantiatePattern("OpenCvConvertImage"));

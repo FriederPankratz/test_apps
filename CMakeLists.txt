@@ -26,5 +26,8 @@ conan_target_link_libraries(bundle_adjustment)
 add_executable(outside_in_generator src/main_outside_in_generator.cpp src/util/YAMLUtil.cpp)
 conan_target_link_libraries(outside_in_generator)
 
+add_executable(open3d_generator src/main_open3d.cpp src/util/YAMLUtil.cpp)
+conan_target_link_libraries(open3d_generator)
+
 #add_executable(${CONAN_PACKAGE_NAME}_fractal src/main_fractal.cpp)
 #conan_target_link_libraries(${CONAN_PACKAGE_NAME}_fractal)
