@@ -12,7 +12,7 @@
 #include <spdlog/sinks/basic_file_sink.h>
 
 #include <traact/vision.h>
-#include <traact/pointCloud.h>
+#include <traact/point_cloud.h>
 
 using namespace traact;
 using namespace traact::dataflow;
@@ -30,9 +30,10 @@ const static std::string kMarkerPose{"pose_marker_{0}_pose"};
 const static std::string kDebugCalibration{"calibration"};
 const static std::string kDebugPose{"pose_{0}"};
 
-const static int countMarker = 6;
-const static int originMarker = 4;
+const static int countMarker = 1;
+const static int originMarker = 0;
 const static int mainCamera = 0;
+const static double marker_size = 0.131;
 
 
 std::string getRawAppPortName(std::string render_in, int object_id, std::string purpose) {
@@ -81,13 +82,13 @@ void addDebugView(traact::DefaultInstanceGraphPtr &graph, int camera_index) {
     };
 
 
-    graph->connect(get_name("source"), "output", "debug_sink", getRawAppPortName(kSingleWindow, camera_index, kImage));
+    graph->connect(get_name("download_color"), "output", "debug_sink", getRawAppPortName(kSingleWindow, camera_index, kImage));
     graph->connect(get_name("create_point_cloud"), "output", "debug_sink", getRawAppPortName(kSceneWindow, camera_index, kPointCloudVertex));
     graph->connect(get_name("color_point_cloud"), "output", "debug_sink", getRawAppPortName(kSceneWindow, camera_index, kPointCloudColor));
 
     graph->connect(get_name("depth_to_color"), "output", "debug_sink", getPoseAppPortName(kSceneWindow, fmt::format("color{0}", camera_index), std::to_string(camera_index)));
 
-    graph->connect(get_name("source"), "output_calibration", "debug_sink", getRawAppPortName(kSingleWindow, camera_index, kDebugCalibration));
+    graph->connect(get_name("undistort_color"), "output_calibration", "debug_sink", getRawAppPortName(kSingleWindow, camera_index, kDebugCalibration));
     graph->connect(get_name("origin_to_camera"), "output", "debug_sink", getPoseAppPortName(kSceneWindow, std::to_string(camera_index), "origin"));
 
 
@@ -122,13 +123,17 @@ void addBasicProcessing(traact::DefaultInstanceGraphPtr &graph,
         graph->addPattern(get_name("color_point_cloud"), my_facade.instantiatePattern("CudaColorPointCloud"));
 
 
+    auto undistort_color_pattern =
+        graph->addPattern(get_name("undistort_color"), my_facade.instantiatePattern("OpenCvCudaUndistortImage"));
 
     auto color_to_gray_pattern =
         graph->addPattern(get_name("color_to_gray"), my_facade.instantiatePattern("OpenCvCudaCvtColor"));
     auto download_gray_pattern =
         graph->addPattern(get_name("download_gray"), my_facade.instantiatePattern("OpenCvCudaDownload"));
+    auto download_color_pattern =
+        graph->addPattern(get_name("download_color"), my_facade.instantiatePattern("OpenCvCudaDownload"));
     auto origin_tracker_pattern =
-        graph->addPattern(get_name("origin_tracker"), my_facade.instantiatePattern("OpenCvArucoTracker"));
+        graph->addPattern(get_name("origin_tracker"), my_facade.instantiatePattern("ApriltagTracker"));
 
     auto depth_to_color_pattern =
         graph->addPattern(get_name("depth_to_color"), my_facade.instantiatePattern("InversionPose6D"));
@@ -161,16 +166,18 @@ void addBasicProcessing(traact::DefaultInstanceGraphPtr &graph,
     auto download_point_color_pattern =
         graph->addPattern(get_name("download_point_color"), my_facade.instantiatePattern("OpenCvCudaDownload"));
     auto build_point_cloud_pattern =
-        graph->addPattern(get_name("build_point_cloud"), my_facade.instantiatePattern("Open3dBuildPointCloud"));
+        graph->addPattern(get_name("build_point_cloud"), my_facade.instantiatePattern("Open3DBuildPointCloud"));
 
 
 
     // configure
     source_pattern->setParameter("file", filename);
     source_pattern->setParameter("stop_after_n_frames", -1);
+    source_pattern->setParameter("send_same_frame_as_new_after_stop", true);
 
-    origin_tracker_pattern->setParameter("Dictionary", "DICT_4X4_50");
-    origin_tracker_pattern->setParameter("MarkerSize", 0.19);
+
+    //origin_tracker_pattern->setParameter("Dictionary", "DICT_4X4_50");
+    //origin_tracker_pattern->setParameter("marker_size", marker_size);
 
     origin_to_camera_pattern->setParameter("file", world_to_camera_file);
     origin_to_camera_write_pattern->setParameter("file", world_to_camera_file);
@@ -182,7 +189,8 @@ void addBasicProcessing(traact::DefaultInstanceGraphPtr &graph,
 
     for(int i=0;i<countMarker;++i){
         auto& marker = origin_tracker_pattern->instantiatePortGroup("output_pose");
-        marker.setParameter("MarkerId", i+1);
+        marker.setParameter("marker_id", i);
+        marker.setParameter("marker_size", marker_size);
         graph->connect(get_name("origin_tracker"), marker.getProducerPortName("output"), "debug_sink", getPoseAppPortName(kSceneWindow, fmt::format("cam{0}marker{1}",index, i), fmt::format("color{0}", index)));
 
         graph->connect(get_name("origin_tracker"), marker.getProducerPortName("output"), "debug_sink", getRawAppPortName(kSingleWindow, index, fmt::format(kDebugPose, i)));
@@ -206,11 +214,14 @@ void addBasicProcessing(traact::DefaultInstanceGraphPtr &graph,
     graph->connect(get_name("source"), "output_calibration", get_name("color_point_cloud"), "input_color_calibration");
     graph->connect(get_name("source"), "output_color_to_depth", get_name("color_point_cloud"), "input_color_to_depth");
 
-    graph->connect(get_name("upload_color"), "output", get_name("color_to_gray"), "input");
+    graph->connect(get_name("upload_color"), "output", get_name("undistort_color"), "input");
+    graph->connect(get_name("source"), "output_calibration", get_name("undistort_color"), "input_calibration");
+    graph->connect(get_name("undistort_color"), "output", get_name("color_to_gray"), "input");
     graph->connect(get_name("color_to_gray"), "output", get_name("download_gray"), "input");
+    graph->connect(get_name("undistort_color"), "output", get_name("download_color"), "input");
 
     graph->connect(get_name("download_gray"), "output", get_name("origin_tracker"), "input");
-    graph->connect(get_name("source"), "output_calibration", get_name("origin_tracker"), "input_calibration");
+    graph->connect(get_name("undistort_color"), "output_calibration", get_name("origin_tracker"), "input_calibration");
     graph->connect(get_name("source"), "output_color_to_depth", get_name("depth_to_color"), "input");
 
 
@@ -239,21 +250,15 @@ void addBasicProcessing(traact::DefaultInstanceGraphPtr &graph,
     graph->connect(get_name("download_point_cloud"), "output", get_name("build_point_cloud"), "input");
     graph->connect(get_name("download_point_color"), "output", get_name("build_point_cloud"), "input_color");
 
-    if(index == mainCamera){
-        graph->connect(get_name("origin_to_camera"), "output", "register_icp", "input_pose");
-        graph->connect(get_name("build_point_cloud"), "output", "register_icp", "input_cloud");
-    } else {
-        auto icp_camera = register_icp_pattern->instantiatePortGroup("sub_camera");
-        auto origin_to_camera_write_icp_pattern =
-            graph->addPattern(get_name("origin_to_camera_write_icp"), my_facade.instantiatePattern("FileReaderWriterWrite_cereal_traact::spatial::Pose6D"));
-        origin_to_camera_write_icp_pattern->setParameter("file", world_to_camera_file);
 
-        graph->connect(get_name("origin_to_camera"), "output", "register_icp", icp_camera.getConsumerPortName("input_pose"));
-        graph->connect(get_name("build_point_cloud"), "output", "register_icp", icp_camera.getConsumerPortName("input_cloud"));
-        graph->connect("register_icp", icp_camera.getProducerPortName("output"), get_name("origin_to_camera_write_icp"), "input");
+    auto icp_camera = register_icp_pattern->instantiatePortGroup("camera");
+    auto origin_to_camera_write_icp_pattern =
+        graph->addPattern(get_name("origin_to_camera_write_icp"), my_facade.instantiatePattern("FileReaderWriterWrite_cereal_traact::spatial::Pose6D"));
+    origin_to_camera_write_icp_pattern->setParameter("file", world_to_camera_file);
 
-
-    }
+    graph->connect(get_name("origin_to_camera"), "output", "register_icp", icp_camera.getConsumerPortName("input_pose"));
+    graph->connect(get_name("build_point_cloud"), "output", "register_icp", icp_camera.getConsumerPortName("input_cloud"));
+    graph->connect("register_icp", icp_camera.getProducerPortName("output"), get_name("origin_to_camera_write_icp"), "input");
 
 
 }
@@ -269,16 +274,17 @@ int main(int argc, char **argv) {
 
     DefaultInstanceGraphPtr graph = std::make_shared<DefaultInstanceGraph>("point_cloud_from_mkv");
 
-    int camera_count = 2;
-    std::string video_pattern = "/home/frieder/data/recording_rtw_calib/cn{0:02d}/k4a_capture.mkv";
-    std::string origin_to_camera_pattern = "/home/frieder/data/recording_rtw_calib/cn{0:02d}/origin_to_camera.json";
+    std::vector<int> camera_dirs{3,4,5,6};
+    int camera_count = camera_dirs.size();
+    std::string video_pattern = "/home/frieder/data/current_calib/cn{0:02d}/k4a_capture.mkv";
+    std::string origin_to_camera_pattern = "/home/frieder/data/current_calib/cn{0:02d}/origin_to_camera.json";
 
     // prepare a RawApplicationSyncSink with all ports used for debug rendering
     auto debug_pattern = my_facade.instantiatePattern("RawApplicationSyncSink");
     for (int camera_index = 0; camera_index < camera_count; ++camera_index) {
         debug_pattern->addConsumerPort(getRawAppPortName(kSingleWindow, camera_index, kImage), traact::vision::ImageHeader::NativeTypeName);
         debug_pattern->addConsumerPort(getRawAppPortName(kSingleWindow, camera_index, kDebugCalibration), traact::vision::CameraCalibrationHeader::NativeTypeName);
-        //debug_pattern->addConsumerPort(getRawAppPortName(kDebugPointCloud, camera_index), traact::pointCloud::PointCloudHeader::NativeTypeName);
+        //debug_pattern->addConsumerPort(getRawAppPortName(kDebugPointCloud, camera_index), traact::point_cloud::PointCloudHeader::NativeTypeName);
         debug_pattern->addConsumerPort(getRawAppPortName(kSceneWindow, camera_index, kPointCloudVertex), traact::vision::GpuImageHeader::NativeTypeName);
         debug_pattern->addConsumerPort(getRawAppPortName(kSceneWindow, camera_index, kPointCloudColor), traact::vision::GpuImageHeader::NativeTypeName);
         debug_pattern->addConsumerPort(getPoseAppPortName(kSceneWindow, std::to_string(camera_index), "origin"), traact::spatial::Pose6DHeader::NativeTypeName);
@@ -306,22 +312,24 @@ int main(int argc, char **argv) {
     auto register_using_icp_pattern =
         graph->addPattern("register_using_icp", my_facade.instantiatePattern("SyncUserEvent"));
 
-    pattern::instance::PatternInstance::Ptr register_icp_pattern = graph->addPattern("register_icp", my_facade.instantiatePattern("Open3dMultiCameraColorICP"));
+    //pattern::instance::PatternInstance::Ptr register_icp_pattern = graph->addPattern("register_icp", my_facade.instantiatePattern("Open3DMultiCameraColorICP"));
+    pattern::instance::PatternInstance::Ptr register_icp_pattern = graph->addPattern("register_icp", my_facade.instantiatePattern("Open3DMultiwayRegistration"));
+    register_icp_pattern->setParameter("reference_node", mainCamera);
 
 
 
 
 
-    origin_to_marker_pattern->setParameter("rx", 1.0);
+    origin_to_marker_pattern->setParameter("rx", -0.707107);
     origin_to_marker_pattern->setParameter("ry", 0.0);
     origin_to_marker_pattern->setParameter("rz", 0.0);
-    origin_to_marker_pattern->setParameter("rw", 0.0);
+    origin_to_marker_pattern->setParameter("rw", 0.707107);
 
     for (int camera_index = 0; camera_index < camera_count; ++camera_index) {
         auto video_file =
-            fmt::format(video_pattern, camera_index + 1);
+            fmt::format(video_pattern, camera_dirs[camera_index]);
         auto world_to_camera_file =
-            fmt::format(origin_to_camera_pattern, camera_index + 1);
+            fmt::format(origin_to_camera_pattern, camera_dirs[camera_index]);
         addBasicProcessing(graph, camera_index, video_file, world_to_camera_file, register_icp_pattern);
         addDebugView(graph, camera_index);
 
@@ -346,7 +354,7 @@ int main(int argc, char **argv) {
 
 
 
-    std::string filename = graph->name + ".json";
+    std::string filename = graph->name + "_multiway.json";
     {
         nlohmann::json jsongraph;
         ns::to_json(jsongraph, *graph);
