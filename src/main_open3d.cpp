@@ -48,6 +48,18 @@ std::string getPoseAppPortName(std::string render_in, std::string object_id, std
     return getRawAppPortName(render_in, object_id, fmt::format("pose_{0}", origin));
 }
 
+std::string getCalibAppPortName(std::string render_in, std::string object_id, std::string origin) {
+    return getRawAppPortName(render_in, object_id, fmt::format("calibration_{0}", origin));
+}
+
+std::string getCalibReaderComponentName(std::string source, std::string target) {
+    return fmt::format("scene_{1}_calibrationRead_{0}", source, target);
+}
+
+std::string getCalibWriterComponentName(std::string source, std::string target) {
+    return fmt::format("scene_{1}_calibrationWrite_{0}", source, target);
+}
+
 void calcAlphaBeta(double threshold, double min, double max, double &alpha, double &beta) {
     alpha = 255.0 / (max - min);
     beta = -255.0;
@@ -89,7 +101,8 @@ void addDebugView(traact::DefaultInstanceGraphPtr &graph, int camera_index) {
     graph->connect(get_name("depth_to_color"), "output", "debug_sink", getPoseAppPortName(kSceneWindow, fmt::format("color{0}", camera_index), std::to_string(camera_index)));
 
     graph->connect(get_name("undistort_color"), "output_calibration", "debug_sink", getRawAppPortName(kSingleWindow, camera_index, kDebugCalibration));
-    graph->connect(get_name("origin_to_camera"), "output", "debug_sink", getPoseAppPortName(kSceneWindow, std::to_string(camera_index), "origin"));
+
+    //graph->connect(getCalibComponentName("origin", std::to_string(index)), "output", "debug_sink", getCalibAppPortName(kSceneWindow, std::to_string(camera_index), "origin"));
 
 
 
@@ -140,9 +153,9 @@ void addBasicProcessing(traact::DefaultInstanceGraphPtr &graph,
 
 
     auto origin_to_camera_pattern =
-        graph->addPattern(get_name("origin_to_camera"), my_facade.instantiatePattern("FileReaderWriterRead_cereal_traact::spatial::Pose6D"));
+        graph->addPattern(getCalibReaderComponentName("origin", std::to_string(index)), my_facade.instantiatePattern("FileReaderWriterRead_cereal_traact::spatial::Pose6D"));
     auto origin_to_camera_write_pattern =
-        graph->addPattern(get_name("origin_to_camera_write"), my_facade.instantiatePattern("FileReaderWriterWrite_cereal_traact::spatial::Pose6D"));
+        graph->addPattern(getCalibWriterComponentName("origin", std::to_string(index)), my_facade.instantiatePattern("FileReaderWriterWrite_cereal_traact::spatial::Pose6D"));
 
 
     auto origin_to_camera_color_mul_pattern =
@@ -234,7 +247,7 @@ void addBasicProcessing(traact::DefaultInstanceGraphPtr &graph,
 
     graph->connect(get_name("origin_to_depth_camera_mul"), "output", get_name("gate_origin_to_camera"), "input");
     graph->connect("register_using_marker", "output", get_name("gate_origin_to_camera"), "input_event");
-    graph->connect(get_name("gate_origin_to_camera"), "output", get_name("origin_to_camera_write"), "input");
+    graph->connect(get_name("gate_origin_to_camera"), "output", getCalibWriterComponentName("origin", std::to_string(index)), "input");
 
 
 
@@ -256,7 +269,7 @@ void addBasicProcessing(traact::DefaultInstanceGraphPtr &graph,
         graph->addPattern(get_name("origin_to_camera_write_icp"), my_facade.instantiatePattern("FileReaderWriterWrite_cereal_traact::spatial::Pose6D"));
     origin_to_camera_write_icp_pattern->setParameter("file", world_to_camera_file);
 
-    graph->connect(get_name("origin_to_camera"), "output", "register_icp", icp_camera.getConsumerPortName("input_pose"));
+    graph->connect(getCalibReaderComponentName("origin", std::to_string(index)), "output", "register_icp", icp_camera.getConsumerPortName("input_pose"));
     graph->connect(get_name("build_point_cloud"), "output", "register_icp", icp_camera.getConsumerPortName("input_cloud"));
     graph->connect("register_icp", icp_camera.getProducerPortName("output"), get_name("origin_to_camera_write_icp"), "input");
 
@@ -287,7 +300,9 @@ int main(int argc, char **argv) {
         //debug_pattern->addConsumerPort(getRawAppPortName(kDebugPointCloud, camera_index), traact::point_cloud::PointCloudHeader::NativeTypeName);
         debug_pattern->addConsumerPort(getRawAppPortName(kSceneWindow, camera_index, kPointCloudVertex), traact::vision::GpuImageHeader::NativeTypeName);
         debug_pattern->addConsumerPort(getRawAppPortName(kSceneWindow, camera_index, kPointCloudColor), traact::vision::GpuImageHeader::NativeTypeName);
-        debug_pattern->addConsumerPort(getPoseAppPortName(kSceneWindow, std::to_string(camera_index), "origin"), traact::spatial::Pose6DHeader::NativeTypeName);
+
+        //debug_pattern->addConsumerPort(getPoseAppPortName(kSceneWindow, std::to_string(camera_index), "origin"), traact::spatial::Pose6DHeader::NativeTypeName);
+
         debug_pattern->addConsumerPort(getPoseAppPortName(kSceneWindow, fmt::format("color{0}", camera_index), std::to_string(camera_index)), traact::spatial::Pose6DHeader::NativeTypeName);
 
 
