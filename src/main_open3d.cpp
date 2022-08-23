@@ -48,6 +48,22 @@ std::string getPoseAppPortName(std::string render_in, std::string object_id, std
     return getRawAppPortName(render_in, object_id, fmt::format("pose_{0}", origin));
 }
 
+std::string getCalibAppPortName(std::string render_in, std::string object_id, std::string origin) {
+    return getRawAppPortName(render_in, object_id, fmt::format("calibration_{0}", origin));
+}
+
+std::string getCalibReaderComponentName(std::string source, std::string target) {
+    return fmt::format("scene_{1}_calibrationRead_{0}", source, target);
+}
+
+std::string getCalibWriterComponentName(std::string source, std::string target) {
+    return fmt::format("scene_{1}_calibrationWrite_{0}", source, target);
+}
+
+std::string getStaticPoseComponentName(std::string source, std::string target) {
+    return fmt::format("scene_{1}_static_{0}", source, target);
+}
+
 void calcAlphaBeta(double threshold, double min, double max, double &alpha, double &beta) {
     alpha = 255.0 / (max - min);
     beta = -255.0;
@@ -89,7 +105,8 @@ void addDebugView(traact::DefaultInstanceGraphPtr &graph, int camera_index) {
     graph->connect(get_name("depth_to_color"), "output", "debug_sink", getPoseAppPortName(kSceneWindow, fmt::format("color{0}", camera_index), std::to_string(camera_index)));
 
     graph->connect(get_name("undistort_color"), "output_calibration", "debug_sink", getRawAppPortName(kSingleWindow, camera_index, kDebugCalibration));
-    graph->connect(get_name("origin_to_camera"), "output", "debug_sink", getPoseAppPortName(kSceneWindow, std::to_string(camera_index), "origin"));
+
+    //graph->connect(getCalibComponentName("origin", std::to_string(index)), "output", "debug_sink", getCalibAppPortName(kSceneWindow, std::to_string(camera_index), "origin"));
 
 
 
@@ -140,9 +157,9 @@ void addBasicProcessing(traact::DefaultInstanceGraphPtr &graph,
 
 
     auto origin_to_camera_pattern =
-        graph->addPattern(get_name("origin_to_camera"), my_facade.instantiatePattern("FileReaderWriterRead_cereal_traact::spatial::Pose6D"));
+        graph->addPattern(getCalibReaderComponentName("origin", std::to_string(index)), my_facade.instantiatePattern("FileReaderWriterRead_cereal_traact::spatial::Pose6D"));
     auto origin_to_camera_write_pattern =
-        graph->addPattern(get_name("origin_to_camera_write"), my_facade.instantiatePattern("FileReaderWriterWrite_cereal_traact::spatial::Pose6D"));
+        graph->addPattern(getCalibWriterComponentName("origin", std::to_string(index)), my_facade.instantiatePattern("FileReaderWriterWrite_cereal_traact::spatial::Pose6D"));
 
 
     auto origin_to_camera_color_mul_pattern =
@@ -180,7 +197,9 @@ void addBasicProcessing(traact::DefaultInstanceGraphPtr &graph,
     //origin_tracker_pattern->setParameter("marker_size", marker_size);
 
     origin_to_camera_pattern->setParameter("file", world_to_camera_file);
+    origin_to_camera_pattern->setParameter("CoordinateSystem", "OpenGL");
     origin_to_camera_write_pattern->setParameter("file", world_to_camera_file);
+    origin_to_camera_write_pattern->setParameter("CoordinateSystem", "OpenGL");
 
     download_point_image_pattern->setParameter("cuda_graph", "download_for_icp");
     download_point_color_pattern->setParameter("cuda_graph", "download_for_icp");
@@ -225,7 +244,7 @@ void addBasicProcessing(traact::DefaultInstanceGraphPtr &graph,
     graph->connect(get_name("source"), "output_color_to_depth", get_name("depth_to_color"), "input");
 
 
-    graph->connect("origin_to_marker", "output", get_name("origin_to_color_camera_mul"), "input_a");
+    graph->connect(getCalibReaderComponentName("origin", "marker"), "output", get_name("origin_to_color_camera_mul"), "input_a");
     graph->connect(get_name("marker_to_camera"), "output", get_name("origin_to_color_camera_mul"), "input_b");
 
     graph->connect(get_name("origin_to_color_camera_mul"), "output", get_name("origin_to_depth_camera_mul"), "input_a");
@@ -234,7 +253,7 @@ void addBasicProcessing(traact::DefaultInstanceGraphPtr &graph,
 
     graph->connect(get_name("origin_to_depth_camera_mul"), "output", get_name("gate_origin_to_camera"), "input");
     graph->connect("register_using_marker", "output", get_name("gate_origin_to_camera"), "input_event");
-    graph->connect(get_name("gate_origin_to_camera"), "output", get_name("origin_to_camera_write"), "input");
+    graph->connect(get_name("gate_origin_to_camera"), "output", getCalibWriterComponentName("origin", std::to_string(index)), "input");
 
 
 
@@ -256,7 +275,7 @@ void addBasicProcessing(traact::DefaultInstanceGraphPtr &graph,
         graph->addPattern(get_name("origin_to_camera_write_icp"), my_facade.instantiatePattern("FileReaderWriterWrite_cereal_traact::spatial::Pose6D"));
     origin_to_camera_write_icp_pattern->setParameter("file", world_to_camera_file);
 
-    graph->connect(get_name("origin_to_camera"), "output", "register_icp", icp_camera.getConsumerPortName("input_pose"));
+    graph->connect(getCalibReaderComponentName("origin", std::to_string(index)), "output", "register_icp", icp_camera.getConsumerPortName("input_pose"));
     graph->connect(get_name("build_point_cloud"), "output", "register_icp", icp_camera.getConsumerPortName("input_cloud"));
     graph->connect("register_icp", icp_camera.getProducerPortName("output"), get_name("origin_to_camera_write_icp"), "input");
 
@@ -272,12 +291,18 @@ int main(int argc, char **argv) {
 
     util::initLogging(spdlog::level::debug);
 
-    DefaultInstanceGraphPtr graph = std::make_shared<DefaultInstanceGraph>("point_cloud_from_mkv_multicamera");
+    DefaultInstanceGraphPtr graph = std::make_shared<DefaultInstanceGraph>("point_cloud_from_mkv_multiway");
 
-    std::vector<int> camera_dirs{1,2,3,4,5};
+//    std::vector<int> camera_dirs{1,2,3,4,5};
+//    int camera_count = camera_dirs.size();
+//    std::string video_pattern = "/home/frieder/data/recording_20220701/cn{0:02d}/capture_cn{0:02d}.mkv";
+//    std::string origin_to_camera_pattern = "/home/frieder/data/recording_20220701/cn{0:02d}/origin_to_camera.json";
+
+    std::vector<int> camera_dirs{3,4,5,6};
     int camera_count = camera_dirs.size();
-    std::string video_pattern = "/artekmed/recordings/calib/cn{0:02d}/capture_cn{0:02d}.mkv";
-    std::string origin_to_camera_pattern = "/artekmed/config/calibration/cn{0:02d}/world_to_camera_opencv.json";
+    std::string video_pattern = "/home/frieder/data/current_calib/cn{0:02d}/k4a_capture.mkv";
+    std::string origin_to_camera_pattern = "/home/frieder/data/current_calib/cn{0:02d}/origin_to_camera.json";
+    std::string origin_to_marker_file = "/home/frieder/data/origin_to_marker.json";
 
     // prepare a RawApplicationSyncSink with all ports used for debug rendering
     auto debug_pattern = my_facade.instantiatePattern("RawApplicationSyncSink");
@@ -287,7 +312,9 @@ int main(int argc, char **argv) {
         //debug_pattern->addConsumerPort(getRawAppPortName(kDebugPointCloud, camera_index), traact::point_cloud::PointCloudHeader::NativeTypeName);
         debug_pattern->addConsumerPort(getRawAppPortName(kSceneWindow, camera_index, kPointCloudVertex), traact::vision::GpuImageHeader::NativeTypeName);
         debug_pattern->addConsumerPort(getRawAppPortName(kSceneWindow, camera_index, kPointCloudColor), traact::vision::GpuImageHeader::NativeTypeName);
-        debug_pattern->addConsumerPort(getPoseAppPortName(kSceneWindow, std::to_string(camera_index), "origin"), traact::spatial::Pose6DHeader::NativeTypeName);
+
+        //debug_pattern->addConsumerPort(getPoseAppPortName(kSceneWindow, std::to_string(camera_index), "origin"), traact::spatial::Pose6DHeader::NativeTypeName);
+
         debug_pattern->addConsumerPort(getPoseAppPortName(kSceneWindow, fmt::format("color{0}", camera_index), std::to_string(camera_index)), traact::spatial::Pose6DHeader::NativeTypeName);
 
 
@@ -304,26 +331,38 @@ int main(int argc, char **argv) {
 
     graph->addPattern("debug_sink", debug_pattern);
 
+//    auto origin_to_marker_pattern =
+//        graph->addPattern(getStaticPoseComponentName("origin", "marker"), my_facade.instantiatePattern("StaticPose"));
+//    origin_to_marker_pattern->setParameter("rx", -0.707107);
+//    origin_to_marker_pattern->setParameter("ry", 0.0);
+//    origin_to_marker_pattern->setParameter("rz", 0.0);
+//    origin_to_marker_pattern->setParameter("rw", 0.707107);
+
     auto origin_to_marker_pattern =
-        graph->addPattern("origin_to_marker", my_facade.instantiatePattern("StaticPose"));
+        graph->addPattern(getCalibReaderComponentName("origin", "marker"), my_facade.instantiatePattern("FileReaderWriterRead_cereal_traact::spatial::Pose6D"));
+    auto origin_to_marker_write_pattern =
+        graph->addPattern(getCalibWriterComponentName("origin", "marker"), my_facade.instantiatePattern("FileReaderWriterWrite_cereal_traact::spatial::Pose6D"));
+    origin_to_marker_pattern->setParameter("file", origin_to_marker_file);
+    origin_to_marker_pattern->setParameter("CoordinateSystem", "OpenGL");
+    origin_to_marker_write_pattern->setParameter("file", origin_to_marker_file);
+    origin_to_marker_write_pattern->setParameter("CoordinateSystem", "OpenGL");
+    graph->connect(getCalibReaderComponentName("origin", "marker"), "output", getCalibWriterComponentName("origin", "marker"), "input");
+
 
     auto register_using_marker_pattern =
         graph->addPattern("register_using_marker", my_facade.instantiatePattern("SyncUserEvent"));
     auto register_using_icp_pattern =
         graph->addPattern("register_using_icp", my_facade.instantiatePattern("SyncUserEvent"));
 
-    pattern::instance::PatternInstance::Ptr register_icp_pattern = graph->addPattern("register_icp", my_facade.instantiatePattern("Open3DMultiCameraColorICP"));
-    //pattern::instance::PatternInstance::Ptr register_icp_pattern = graph->addPattern("register_icp", my_facade.instantiatePattern("Open3DMultiwayRegistration"));
+    //pattern::instance::PatternInstance::Ptr register_icp_pattern = graph->addPattern("register_icp", my_facade.instantiatePattern("Open3DMultiCameraColorICP"));
+    pattern::instance::PatternInstance::Ptr register_icp_pattern = graph->addPattern("register_icp", my_facade.instantiatePattern("Open3DMultiwayRegistration"));
     register_icp_pattern->setParameter("reference_node", mainCamera);
 
 
 
 
 
-    origin_to_marker_pattern->setParameter("rx", -0.707107);
-    origin_to_marker_pattern->setParameter("ry", 0.0);
-    origin_to_marker_pattern->setParameter("rz", 0.0);
-    origin_to_marker_pattern->setParameter("rw", 0.707107);
+
 
     for (int camera_index = 0; camera_index < camera_count; ++camera_index) {
         auto video_file =
@@ -345,7 +384,7 @@ int main(int argc, char **argv) {
 
     td_config.source_mode = SourceMode::WAIT_FOR_BUFFER;
     td_config.missing_source_event_mode = MissingSourceEventMode::WAIT_FOR_EVENT;
-    td_config.max_offset = std::chrono::milliseconds(15);
+    td_config.max_offset = std::chrono::milliseconds(10);
     td_config.max_delay = std::chrono::milliseconds(100);
     td_config.sensor_frequency = 30;
     td_config.cpu_count = 0;
