@@ -20,6 +20,7 @@ class BAProblemLoader {
      std::shared_ptr<vision::bundle_adjustment::BundleAdjustment> ba_;
      std::vector<std::shared_ptr<vision::bundle_adjustment::BACamera> > cameras_;
      std::map<size_t, std::string> artekmed_result_files_;
+    std::string target_to_origin_file_;
 
 };
 
