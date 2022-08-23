@@ -62,13 +62,13 @@ bool BAProblemLoader::LoadConfig(YAML::Node config) {
     if (!util::HasValue("point_3D_feature_file", ba_target_config)) {
         return false;
     }
-//    if(!util::HasValue("target_to_origin_file", ba_target_config)) {
-//        return false;
-//    }
-//    std::string target_to_origin_file = ba_target_config["target_to_origin_file"].as<std::string>();
-//    if(!util::fileExists(target_to_origin_file, "target_to_origin_file")){
-//        return false;
-//    }
+    if(!util::HasValue("target_to_origin_file", ba_target_config)) {
+        return false;
+    }
+    target_to_origin_file_ = ba_target_config["target_to_origin_file"].as<std::string>();
+    if(!util::fileExists(target_to_origin_file_, "target_to_origin_file")){
+        return false;
+    }
 
     std::string model_file = ba_target_config["model_file"].as<std::string>();
     if (!util::fileExists(model_file, "model_file")) {
@@ -354,6 +354,18 @@ void BAProblemLoader::SaveResults() {
             }
             {
                 auto world2camera_opencv = results[i].inverse();
+                spatial::Pose6D target2origin_ubitrack;
+                {
+                    std::ifstream stream;
+                    stream.open(target_to_origin_file_);
+                    cereal::JSONInputArchive archive(stream);
+                    archive(target2origin_ubitrack);
+
+
+                    //target2origin_ubitrack = target2origin_ubitrack * Eigen::AngleAxisf(0.25*M_PI, Eigen::Vector3f::UnitY());
+                    target2origin_ubitrack.rotate( Eigen::AngleAxisf(0.25*M_PI, Eigen::Vector3f::UnitX()) * Eigen::AngleAxisf(M_PI, Eigen::Vector3f::UnitY()));
+
+                }
 
                 // are artekmed poses not in opengl format?
 
@@ -374,7 +386,9 @@ void BAProblemLoader::SaveResults() {
                 spatial::Pose6D pose_tmp2 = spatial::Pose6D::Identity();
                 pose_tmp2.rotate(spatial::Rotation3D(0.7071,-0.7071,0,0) * spatial::Rotation3D(0.7071,0,0,0.7071));
 
-                spatial::Pose6D final_pose = pose_tmp2 * world2camera_opencv * pose_tmp;
+                spatial::Pose6D world2camera_artekmed = pose_tmp2 * world2camera_opencv * pose_tmp;
+
+                spatial::Pose6D final_pose = target2origin_ubitrack.inverse() * world2camera_artekmed;
 
                 auto final_filename = artekmed_result_files_.at(i);
                 std::ofstream stream;

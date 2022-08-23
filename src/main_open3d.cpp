@@ -272,12 +272,12 @@ int main(int argc, char **argv) {
 
     util::initLogging(spdlog::level::debug);
 
-    DefaultInstanceGraphPtr graph = std::make_shared<DefaultInstanceGraph>("point_cloud_from_mkv");
+    DefaultInstanceGraphPtr graph = std::make_shared<DefaultInstanceGraph>("point_cloud_from_mkv_multicamera");
 
-    std::vector<int> camera_dirs{3,4,5,6};
+    std::vector<int> camera_dirs{1,2,3,4,5};
     int camera_count = camera_dirs.size();
-    std::string video_pattern = "/home/frieder/data/current_calib/cn{0:02d}/k4a_capture.mkv";
-    std::string origin_to_camera_pattern = "/home/frieder/data/current_calib/cn{0:02d}/origin_to_camera.json";
+    std::string video_pattern = "/artekmed/recordings/calib/cn{0:02d}/capture_cn{0:02d}.mkv";
+    std::string origin_to_camera_pattern = "/artekmed/config/calibration/cn{0:02d}/world_to_camera_opencv.json";
 
     // prepare a RawApplicationSyncSink with all ports used for debug rendering
     auto debug_pattern = my_facade.instantiatePattern("RawApplicationSyncSink");
@@ -312,8 +312,8 @@ int main(int argc, char **argv) {
     auto register_using_icp_pattern =
         graph->addPattern("register_using_icp", my_facade.instantiatePattern("SyncUserEvent"));
 
-    //pattern::instance::PatternInstance::Ptr register_icp_pattern = graph->addPattern("register_icp", my_facade.instantiatePattern("Open3DMultiCameraColorICP"));
-    pattern::instance::PatternInstance::Ptr register_icp_pattern = graph->addPattern("register_icp", my_facade.instantiatePattern("Open3DMultiwayRegistration"));
+    pattern::instance::PatternInstance::Ptr register_icp_pattern = graph->addPattern("register_icp", my_facade.instantiatePattern("Open3DMultiCameraColorICP"));
+    //pattern::instance::PatternInstance::Ptr register_icp_pattern = graph->addPattern("register_icp", my_facade.instantiatePattern("Open3DMultiwayRegistration"));
     register_icp_pattern->setParameter("reference_node", mainCamera);
 
 
@@ -354,7 +354,7 @@ int main(int argc, char **argv) {
 
 
 
-    std::string filename = graph->name + "_multiway.json";
+    std::string filename = graph->name + ".json";
     {
         nlohmann::json jsongraph;
         ns::to_json(jsongraph, *graph);
