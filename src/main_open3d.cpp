@@ -201,6 +201,8 @@ void addBasicProcessing(traact::DefaultInstanceGraphPtr &graph,
     origin_to_camera_write_pattern->setParameter("file", world_to_camera_file);
     origin_to_camera_write_pattern->setParameter("CoordinateSystem", "OpenGL");
 
+
+
     download_point_image_pattern->setParameter("cuda_graph", "download_for_icp");
     download_point_color_pattern->setParameter("cuda_graph", "download_for_icp");
 
@@ -274,6 +276,7 @@ void addBasicProcessing(traact::DefaultInstanceGraphPtr &graph,
     auto origin_to_camera_write_icp_pattern =
         graph->addPattern(get_name("origin_to_camera_write_icp"), my_facade.instantiatePattern("FileReaderWriterWrite_cereal_traact::spatial::Pose6D"));
     origin_to_camera_write_icp_pattern->setParameter("file", world_to_camera_file);
+    origin_to_camera_write_icp_pattern->setParameter("CoordinateSystem", "OpenGL");
 
     graph->connect(getCalibReaderComponentName("origin", std::to_string(index)), "output", "register_icp", icp_camera.getConsumerPortName("input_pose"));
     graph->connect(get_name("build_point_cloud"), "output", "register_icp", icp_camera.getConsumerPortName("input_cloud"));
@@ -293,16 +296,11 @@ int main(int argc, char **argv) {
 
     DefaultInstanceGraphPtr graph = std::make_shared<DefaultInstanceGraph>("point_cloud_from_mkv_multiway");
 
-//    std::vector<int> camera_dirs{1,2,3,4,5};
-//    int camera_count = camera_dirs.size();
-//    std::string video_pattern = "/home/frieder/data/recording_20220701/cn{0:02d}/capture_cn{0:02d}.mkv";
-//    std::string origin_to_camera_pattern = "/home/frieder/data/recording_20220701/cn{0:02d}/origin_to_camera.json";
-
-    std::vector<int> camera_dirs{3,4,5,6};
+    std::vector<int> camera_dirs{1,2,3,4,5};
     int camera_count = camera_dirs.size();
-    std::string video_pattern = "/home/frieder/data/current_calib/cn{0:02d}/k4a_capture.mkv";
-    std::string origin_to_camera_pattern = "/home/frieder/data/current_calib/cn{0:02d}/origin_to_camera.json";
-    std::string origin_to_marker_file = "/home/frieder/data/origin_to_marker.json";
+    std::string video_pattern = "/artekmed/recordings/calib/cn{0:02d}/capture_cn{0:02d}.mkv";
+    std::string origin_to_camera_pattern = "/artekmed/config/calibration/cn{0:02d}/world2camera.json";
+    std::string origin_to_marker_file = "/artekmed/config/calibration/origin_to_marker.json";
 
     // prepare a RawApplicationSyncSink with all ports used for debug rendering
     auto debug_pattern = my_facade.instantiatePattern("RawApplicationSyncSink");
