@@ -484,7 +484,7 @@ class TraactConfig {
         auto build_point_cloud_pattern =
             graph_->addPattern(get_name("build_point_cloud"), my_facade.instantiatePattern("Open3DBuildPointCloud"));
 
-        auto world_to_camera_file = fmt::format(origin_to_camera_file_pattern_, camera_index);
+        auto world_to_camera_file = fmt::format(origin_to_camera_file_pattern_, camera_index_to_id_[camera_index]);
         origin_to_camera_pattern->setParameter("file", world_to_camera_file);
         origin_to_camera_pattern->setParameter("CoordinateSystem", "OpenGL");
         origin_to_camera_write_pattern->setParameter("file", world_to_camera_file);

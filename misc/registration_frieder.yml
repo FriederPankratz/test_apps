@@ -2,7 +2,7 @@ config:
   name: "registration_icp"
   main_camera: 3
   origin_marker_id: 0
-  origin_to_camera_file_pattern: "/home/frieder/data/recording_20220701/cn{0:02d}/origin_to_camera.json"
+  origin_to_camera_file_pattern: "/home/frieder/data/recording_20220701/cn{0:02d}/world2camera.json"
   origin_to_marker_file: "/home/frieder/data/origin_to_marker.json"
   add_single_windows: True
   dataflow:
