@@ -2,13 +2,16 @@ config:
   name: "registration_icp"
   main_camera: 3
   origin_marker_id: 0
-  origin_to_camera_file_pattern: "/home/frieder/data/recording_20220701/cn{0:02d}/world2camera.json"
+  origin_to_camera_file_pattern2: "/home/frieder/data/recording_20220701/cn{0:02d}/world2camera.json"
+  origin_to_camera_file_pattern: "/home/frieder/data/recording_rtw_calib/calibration/cn{0:02d}/world2camera.json"
+
+
   origin_to_marker_file: "/home/frieder/data/origin_to_marker.json"
   add_single_windows: True
   dataflow:
     buffer_size: 3
     sensor_frequency: 30
-    max_offset: 10
+    max_offset: 7
     cpu_count: 0
   cameras:
     - 1
@@ -53,7 +56,9 @@ config:
     marker_size: 0.131
 
   video_files:
-    video_file_pattern: "/home/frieder/data/recording_20220701/cn{0:02d}/capture_cn{0:02d}.mkv"
+    video_file_pattern: "/home/frieder/data/recording_rtw_calib/cn{0:02d}/k4a_capture.mkv"
+    video_file_pattern2: "/home/frieder/data/recording_20220701/cn{0:02d}/capture_cn{0:02d}.mkv"
+
   shm_stream:
     image_stream: "camera_x5_shm"
 

@@ -32,7 +32,7 @@ class TraactPackage(ConanFile):
     # overwrite these dependencies
     requires = (
         "eigen/3.4.0",
-        "spdlog/1.10.0",
+        "spdlog/1.11.0",
         "glfw/3.3.4",
         "opencv/4.5.5@camposs/stable"
     )
