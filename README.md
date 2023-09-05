@@ -10,7 +10,7 @@ copy imgui.ini into you execution directory (e.g. build/Debug)
 4. two files will be generated, registration_icp_shm.json with shm form pcpd as input and registration_icp_mkv.json with k4a_recorder input 
 5. run: traact_gui registration_icp_shm.json
 
-## Parameter
+## Parameter registration_config.yml
 
 - name: base name of generated files
 - main_camera: id used for marker tracking  
