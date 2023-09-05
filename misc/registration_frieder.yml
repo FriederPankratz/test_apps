@@ -1,9 +1,8 @@
 config:
   name: "registration_icp"
-  main_camera: 3
+  main_camera: 1
   origin_marker_id: 0
-  origin_to_camera_file_pattern2: "/home/frieder/data/recording_20220701/cn{0:02d}/world2camera.json"
-  origin_to_camera_file_pattern: "/home/frieder/data/recording_rtw_calib/calibration/cn{0:02d}/world2camera.json"
+  origin_to_camera_file_pattern: "/media/frieder/System/data/inm_ba/registration_shm/cn{0:02d}/world2camera.json"
 
 
   origin_to_marker_file: "/home/frieder/data/origin_to_marker.json"
@@ -16,15 +15,14 @@ config:
   cameras:
     - 1
     - 2
-    - 3
-    - 4
-    - 5
   marker_tracker:
     pattern: "ApriltagTracker"
     marker:
       marker_0:
           marker_id: 0
           marker_size: 0.131
+  
+
   marker_tracker_aruco:
     pattern: "OpenCvArucoTracker"
     dictionary: "DICT_4X4_50"
