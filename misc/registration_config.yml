@@ -58,4 +58,28 @@ config:
   shm_stream:
     image_stream: "camera_x5_shm"
 
+  camera_stream:
+    cameras:
+      camera_0:
+        DeviceID: "000090501412"
+        HardwareSyncMode: "MASTER"
+        SubordinateDelayOffMaster_usec: 0
+        DepthDelayOffColor_usec: 0
+        SyncedImagesOnly: True
+        DepthMode: "WFOV_UNBINNED"
+        FrameRate: 15
+        ColorImageFormat: "COLOR_BGRA32"
+        ColorResolution: "1440P"
+      camera_1:
+        DeviceID: "000084201412"
+        HardwareSyncMode: "SUBORDINATE"
+        SubordinateDelayOffMaster_usec: 120
+        DepthDelayOffColor_usec: 0
+        SyncedImagesOnly: True
+        DepthMode: "WFOV_UNBINNED"
+        FrameRate: 15
+        ColorImageFormat: "COLOR_BGRA32"
+        ColorResolution: "1440P"
+
+
 

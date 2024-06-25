@@ -21,6 +21,6 @@ copy imgui.ini into you execution directory (e.g. build/Debug)
 - cameras: list of camera ids
 - marker_tracker: section named marker_tracker is used for tracking. Default is Apriltag, examples for Aruco and ArucoFractal are included 
 - video_file_pattern: like origin_to_camera_file_pattern, defines path to video input files
-- image_stream: name of shm process for video input
+- image_stream: name of shm getImage for video input
 
 

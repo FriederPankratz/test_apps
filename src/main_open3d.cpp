@@ -86,6 +86,7 @@ class TraactConfig {
   std::string origin_to_marker_file;
   DefaultInstanceGraphPtr graph_;
   bool use_shm_;
+  bool use_live_;
   pattern::instance::PatternInstance::Ptr register_icp_pattern_;
   bool add_single_windows_;
 
@@ -95,6 +96,7 @@ class TraactConfig {
     main_camera_id_ = config["main_camera"].as<int>();
     origin_marker_id_ = config["origin_marker_id"].as<int>();
     use_shm_ = config["use_shm"].as<bool>();
+    use_live_ = config["use_live"].as<bool>();
     add_single_windows_ = config["add_single_windows"].as<bool>();
 
     origin_to_camera_file_pattern_ = config["origin_to_camera_file_pattern"].as<std::string>();
@@ -138,7 +140,7 @@ class TraactConfig {
     td_config.sensor_frequency = config["sensor_frequency"].as<double>();
     td_config.cpu_count = config["cpu_count"].as<int>();
 
-    if (use_shm_) {
+    if (use_live_) {
       td_config.source_mode = SourceMode::IMMEDIATE_RETURN;
       td_config.missing_source_event_mode = MissingSourceEventMode::WAIT_FOR_EVENT;
     } else {
@@ -239,11 +241,16 @@ class TraactConfig {
   }
 
   void addCameraPatterns(const YAML::Node &config) {
-    if (use_shm_) {
-      addShmSource(config["shm_stream"]);
+    if(use_live_){
+      if (use_shm_) {
+        addShmSource(config["shm_stream"]);
+      } else {
+        addCaptureSource(config["camera_stream"]);
+      }
     } else {
       addVideoSource(config["video_files"]);
     }
+
   }
 
   void addShmSource(const YAML::Node config) {
@@ -338,6 +345,77 @@ class TraactConfig {
                     get_name("color_point_cloud"),
                     "input_color_calibration");
     graph_->connect(get_name("source"),
+                    "output_color_to_depth",
+                    get_name("color_point_cloud"),
+                    "input_color_to_depth");
+  }
+
+  void addCaptureSource(const YAML::Node &config) {
+    SPDLOG_INFO("add capture source");
+    int i=0;
+    for (const auto &marker_node : config["cameras"]) {
+      auto parameter = marker_node.second;
+      addCaptureSource(i,parameter);
+      ++i;
+    }
+
+  }
+
+  void addCaptureSource(const int camera_index, const YAML::Node& config) {
+    auto get_name = [camera_index](const std::string &name) {
+      return getIdxName(name, camera_index);
+    };
+
+    SPDLOG_INFO("add camera {0}", camera_index);
+
+    auto set_parameter = [](const YAML::Node& config, pattern::instance::PatternInstance::Ptr pattern) -> void {
+      pattern->setParameter("ColorResolution", config["ColorResolution"].as<std::string>());
+      pattern->setParameter("ColorImageFormat", config["ColorImageFormat"].as<std::string>());
+      pattern->setParameter("FrameRate", config["FrameRate"].as<std::string>());
+      pattern->setParameter("HardwareSyncMode", config["HardwareSyncMode"].as<std::string>());
+      pattern->setParameter("SubordinateDelayOffMaster_usec", config["SubordinateDelayOffMaster_usec"].as<int32_t>());
+      pattern->setParameter("DeviceID", config["DeviceID"].as<std::string>());
+      //pattern->setParameter("DisableStreamingIndicator", config["DisableStreamingIndicator"].as<bool>());
+    };
+
+    auto source_calib_pattern =
+        graph_->addPattern(getIdxName("source_calib", camera_index),
+                           my_facade.instantiatePattern("traact::component::kinect::KinectAzureOutputCalibration"));
+    auto source_color_pattern =
+        graph_->addPattern(getIdxName("source_color", camera_index),
+                           my_facade.instantiatePattern("traact::component::kinect::KinectAzureOutputColor"));
+    auto source_depth_pattern =
+        graph_->addPattern(getIdxName("source_depth", camera_index),
+                           my_facade.instantiatePattern("traact::component::kinect::KinectAzureOutputDepth"));
+
+    set_parameter(config, source_calib_pattern);
+    set_parameter(config, source_color_pattern);
+    set_parameter(config, source_depth_pattern);
+
+
+    graph_->connect(get_name("source_depth"), "output",
+                    get_name("upload_depth"), "input");
+
+    graph_->connect(get_name("source_calib"), "output_xy_table",
+                    get_name("upload_xy_table"), "input");
+
+    graph_->connect(get_name("source_color"), "output",
+                    get_name("upload_color"), "input");
+
+    graph_->connect(get_name("source_calib"), "output_calibration",
+                    get_name("undistort_color"), "input_calibration");
+
+    graph_->connect(get_name("source_calib"), "output_color_to_depth",
+                    get_name("depth_to_color"), "input");
+
+    graph_->connect(get_name("source_calib"), "output_color_to_depth",
+                    get_name("origin_to_depth_camera_mul"), "input_b");
+
+    graph_->connect(get_name("source_calib"),
+                    "output_calibration",
+                    get_name("color_point_cloud"),
+                    "input_color_calibration");
+    graph_->connect(get_name("source_calib"),
                     "output_color_to_depth",
                     get_name("color_point_cloud"),
                     "input_color_to_depth");
@@ -711,9 +789,11 @@ int main(int argc, char **argv) {
 
   auto base_name = config["name"].as<std::string>();
 
+
   if (config["video_files"]) {
     config["name"] = fmt::format("{0}_{1}", base_name, "mkv");
     config["use_shm"] = false;
+      config["use_live"] = false;
     TraactConfig config_generator;
     auto graph = config_generator.create_config(config);
     writeTraactFile(graph);
@@ -724,10 +804,22 @@ int main(int argc, char **argv) {
   if (config["shm_stream"]) {
     config["name"] = fmt::format("{0}_{1}", base_name, "shm");
     config["use_shm"] = true;
+      config["use_live"] = true;
     TraactConfig config_generator;
     auto graph = config_generator.create_config(config);
     writeTraactFile(graph);
   } else {
     SPDLOG_WARN("not generating dataflow for shm files, no \"shm_stream\" section defined");
+  }
+
+  if (config["camera_stream"]) {
+    config["name"] = fmt::format("{0}_{1}", base_name, "capture");
+    config["use_shm"] = false;
+    config["use_live"] = true;
+    TraactConfig config_generator;
+    auto graph = config_generator.create_config(config);
+    writeTraactFile(graph);
+  } else {
+    SPDLOG_WARN("not generating dataflow for shm files, no \"camera_stream\" section defined");
   }
 }
