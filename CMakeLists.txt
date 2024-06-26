@@ -30,7 +30,4 @@ target_link_libraries(outside_in_generator PRIVATE traact_core::traact_core traa
 add_executable(open3d_generator src/main_open3d.cpp src/util/YAMLUtil.cpp)
 target_link_libraries(open3d_generator PRIVATE traact_core::traact_core traact_spatial::traact_spatial traact_vision::traact_vision yaml-cpp traact_pointcloud::traact_pointcloud traact_component_cereal::traact_component_cereal)
 
-add_executable(test src/main_test.cpp src/util/YAMLUtil.cpp)
-target_link_libraries(test PRIVATE traact_core::traact_core traact_spatial::traact_spatial traact_vision::traact_vision yaml-cpp traact_pointcloud::traact_pointcloud traact_component_cereal::traact_component_cereal)
-
 #include(traact_default_library_final)
