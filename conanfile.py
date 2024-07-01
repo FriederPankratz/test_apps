@@ -42,8 +42,9 @@ class TraactPackage(ConanFile):
         self.requires("traact_component_http/0.0.0@traact/latest")
         self.requires("traact_component_zenoh/0.0.0@traact/latest")
         self.requires("yaml-cpp/0.7.0")
-
         self.requires("cpp-httplib/0.14.0", transitive_libs=True)
+        self.requires("libjpeg-turbo/3.0.2", force=True)
++       self.requires("cppfs/1.3.0@camposs/stable", transitive_libs=True)
 
     def configure(self):
         self.options['traact_core'].shared = self.options.shared
