@@ -7,7 +7,7 @@ config:
   add_single_windows: True
   dataflow:
     buffer_size: 3
-    sensor_frequency: 30
+    sensor_frequency: 15
     max_offset: 7
     cpu_count: 0
   cameras:

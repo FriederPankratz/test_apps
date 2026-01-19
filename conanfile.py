@@ -37,7 +37,7 @@ class TraactPackage(ConanFile):
         self.requires("traact_component_kinect_azure/0.0.0@traact/latest")
         self.requires("traact_component_cereal/0.0.0@traact/latest")
         self.requires("traact_component_aruco/0.0.0@traact/latest")
-        self.requires("traact_pcpd/0.0.0@traact/latest")
+        self.requires("traact_component_pcpd_shm/0.0.0@traact/latest")
         self.requires("traact_pointcloud/0.0.0@traact/latest")
         self.requires("yaml-cpp/0.7.0")
         self.requires("cpp-httplib/0.14.0", transitive_libs=True)
